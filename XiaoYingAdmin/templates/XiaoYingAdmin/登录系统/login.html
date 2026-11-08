@@ -1,0 +1,302 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 — {{ site_name }}</title>
+    {# LayUI + FontAwesome #}
+    <link rel="stylesheet" href="{% static 'vendor/layui/css/layui.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+
+        body {
+            font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        {# 背景装饰粒子 #}
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 60%),
+                        radial-gradient(circle at 70% 60%, rgba(100,180,255,0.04) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .login-container {
+            width: 400px;
+            max-width: 92vw;
+            position: relative;
+            z-index: 1;
+        }
+
+        {# Logo/品牌区 #}
+        .login-brand {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-brand .brand-icon {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #5FB878, #3A9E6D);
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 12px;
+            box-shadow: 0 8px 24px rgba(95, 184, 120, 0.3);
+        }
+        .login-brand h1 {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .login-brand p {
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
+            margin-top: 6px;
+        }
+
+        {# 登录卡片 #}
+        .login-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 36px 32px 28px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .login-card h2 {
+            font-size: 16px;
+            color: #393D49;
+            margin-bottom: 24px;
+            text-align: center;
+            font-weight: 500;
+        }
+        .login-card h2 i {
+            margin-right: 6px;
+            color: #5FB878;
+        }
+
+        {# 输入框 #}
+        .login-field {
+            position: relative;
+            margin-bottom: 18px;
+        }
+        .login-field .field-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #bbb;
+            font-size: 14px;
+            z-index: 2;
+            transition: color 0.2s;
+        }
+        .login-field .field-icon.active { color: #5FB878; }
+        .login-field input {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px 0 40px;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #393D49;
+            background: #fafafa;
+            outline: none;
+            transition: all 0.25s;
+        }
+        .login-field input:focus {
+            border-color: #5FB878;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(95, 184, 120, 0.12);
+        }
+        .login-field input::placeholder { color: #bbb; }
+
+        {# 错误提示 #}
+        .login-error {
+            background: #fff5f5;
+            border: 1px solid #ffe0e0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            color: #e54d4d;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: shake 0.4s ease;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        {# 提交按钮 #}
+        .login-btn {
+            width: 100%;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #5FB878, #3A9E6D);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s;
+            box-shadow: 0 4px 14px rgba(95, 184, 120, 0.35);
+            letter-spacing: 0.5px;
+        }
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(95, 184, 120, 0.45);
+        }
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        {# 登录页底部链接 #}
+        .login-links {
+            text-align: center;
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .login-links a {
+            color: #999;
+            font-size: 13px;
+            text-decoration: none;
+            transition: color .2s;
+        }
+        .login-links a:hover { color: #5FB878; }
+
+        {# 底部版权 #}
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255,255,255,0.35);
+            font-size: 12px;
+        }
+
+        {# 加载状态 #}
+        .login-btn.loading {
+            pointer-events: none;
+            position: relative;
+        }
+        .login-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            right: 24px;
+            top: 50%;
+            margin-top: -9px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        {# 品牌区 #}
+        <div class="login-brand">
+            <div class="brand-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h1>{{ site_name }}</h1>
+            <p>后台管理系统</p>
+        </div>
+
+        {# 登录卡片 #}
+        <div class="login-card">
+            <h2><i class="fas fa-lock"></i> 管理员登录</h2>
+
+            {% if error %}
+            <div class="login-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <form method="post" id="login-form" autocomplete="off">
+                {# 虽然没有 CSRF 中间件,但 Django 仍要求 csrf_token 用于模板渲染 #}
+                {% csrf_token %}
+
+                <div class="login-field">
+                    <i class="fas fa-user field-icon" id="icon-user"></i>
+                    <input type="text" name="username" id="username"
+                           placeholder="用户名" required autofocus
+                           value="{{ request.POST.username|default:'' }}">
+                </div>
+
+                <div class="login-field">
+                    <i class="fas fa-lock field-icon" id="icon-pass"></i>
+                    <input type="password" name="password" id="password"
+                           placeholder="密码" required>
+                </div>
+
+                <button type="submit" class="login-btn" id="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> 登 录
+                </button>
+            </form>
+
+            <div class="login-links">
+                {% if registration_enabled %}
+                <a href="{% url 'register' %}"><i class="fas fa-user-plus"></i> 注册新账号</a>
+                {% endif %}
+                <a href="{% url 'forgot_password' %}"><i class="fas fa-question-circle"></i> 忘记密码？</a>
+            </div>
+        </div>
+
+        <div class="login-footer">
+            &copy; {{ site_name }} &middot; {{ version }}
+        </div>
+    </div>
+
+    <script src="{% static 'vendor/layui/layui.js' %}"></script>
+    <script>
+    (function () {
+        var form = document.getElementById('login-form');
+        var btn = document.getElementById('login-btn');
+
+        {# 输入框图标高亮 #}
+        function toggleIcon(inputId, iconId) {
+            var input = document.getElementById(inputId);
+            var icon = document.getElementById(iconId);
+            if (!input || !icon) return;
+            input.addEventListener('focus', function () { icon.classList.add('active'); });
+            input.addEventListener('blur', function () { icon.classList.remove('active'); });
+        }
+        toggleIcon('username', 'icon-user');
+        toggleIcon('password', 'icon-pass');
+
+        {# 提交 loading 防止重复点击 #}
+        form.addEventListener('submit', function () {
+            btn.disabled = true;
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 登录中…';
+        });
+    })();
+    </script>
+</body>
+</html>

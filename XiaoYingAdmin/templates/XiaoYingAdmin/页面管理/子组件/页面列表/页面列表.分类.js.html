@@ -1,0 +1,407 @@
+<script>
+// ============================================================
+// 页面列表 — 分类管理 & 侧边栏
+// ============================================================
+
+function renderSidebar() {
+    var ul = document.getElementById('categoryList');
+    var html = '';
+    // "所有分类"始终存在
+    html += '<li data-filter="all" class="' + (currentFilter === 'all' ? 'active' : '') + '"><i class="fas fa-th-list"></i> 所有分类 <span class="cat-count" id="countAll">0</span></li>';
+    // 动态分类
+    categories.forEach(function(c) {
+        var active = currentFilter === 'cat_' + c.id ? 'active' : '';
+        html += '<li data-filter="cat_' + c.id + '" class="' + active + '">';
+        html += '<i class="fas fa-folder" style="color:#5FB878;"></i> ';
+        html += escHtml(c.name);
+        html += ' <span class="cat-count" id="countCat' + c.id + '">0</span>';
+        html += ' <span class="cat-edit" data-id="' + c.id + '" title="编辑分类"><i class="fas fa-pen"></i></span>';
+        html += ' <span class="cat-domains" data-id="' + c.id + '" title="查看分类下全部域名"><i class="fas fa-globe"></i></span>';
+        html += ' <span class="cat-clear" data-id="' + c.id + '" data-type="category" title="清空分类下所有页面"><i class="fas fa-trash"></i></span>';
+        html += ' <span class="cat-del" data-id="' + c.id + '" title="删除分类"><i class="fas fa-times"></i></span>';
+        html += '</li>';
+    });
+    // 未分类 & 未绑定域名
+    var ucActive = currentFilter === 'uncategorized' ? 'active' : '';
+    html += '<li data-filter="uncategorized" class="' + ucActive + '"><i class="fas fa-inbox" style="color:#999;"></i> 未分类 <span class="cat-count" id="countUncat">0</span> <span class="cat-clear" data-type="uncategorized" title="删除所有未分类页面"><i class="fas fa-trash"></i></span></li>';
+    var ubActive = currentFilter === 'unbound' ? 'active' : '';
+    html += '<li data-filter="unbound" class="' + ubActive + '"><i class="fas fa-chain-broken" style="color:#bbb;"></i> 未绑定域名 <span class="cat-count" id="countUnbound">0</span> <span class="cat-clear" data-type="unbound" title="删除所有未绑定域名页面"><i class="fas fa-trash"></i></span></li>';
+    ul.innerHTML = html;
+
+    // 更新数量
+    if (treeData) {
+        updateSidebarCounts();
+    }
+
+    // 侧边栏点击事件
+    ul.querySelectorAll('li[data-filter]').forEach(function(li) {
+        li.addEventListener('click', function(e) {
+            if (e.target.closest('.cat-del') || e.target.closest('.cat-edit') || e.target.closest('.cat-domains') || e.target.closest('.cat-clear')) return;
+            currentFilter = li.getAttribute('data-filter');
+            ul.querySelectorAll('li').forEach(function(l) { l.classList.remove('active'); });
+            li.classList.add('active');
+            renderTree();
+        });
+    });
+
+    // 编辑分类
+    ul.querySelectorAll('.cat-edit').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var id = parseInt(el.getAttribute('data-id'));
+            openEditCategory(id);
+        });
+    });
+
+    // 删除分类
+    ul.querySelectorAll('.cat-del').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var id = parseInt(el.getAttribute('data-id'));
+            var name = '';
+            categories.forEach(function(c) { if (c.id === id) name = c.name; });
+            layer.confirm('确定删除分类「' + name + '」？<br><span style="color:#999;font-size:12px;">不会删除页面，仅解除分类关联</span>', {
+                icon: 3, btn: ['确定删除', '取消'], title: '确认删除'
+            }, function(index) {
+                layer.close(index);
+                var idx = layer.load(1);
+                fetch('/xiaoying_admin/api/pages/categories/delete/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    layer.close(idx);
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.msg(resp.message, {icon:1});
+                    loadCategories().then(function() { loadTree(); });
+                }).catch(function() { layer.close(idx); layer.msg('删除失败', {icon:2}); });
+            });
+        });
+    });
+
+    // 查看分类域名
+    ul.querySelectorAll('.cat-domains').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var id = parseInt(el.getAttribute('data-id'));
+            openDomainViewModal(id);
+        });
+    });
+
+    // 清空分类/未分类/未绑定域名下的所有页面
+    ul.querySelectorAll('.cat-clear').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var type = el.getAttribute('data-type');
+            var id = el.getAttribute('data-id');
+            var name = '';
+
+            if (type === 'category') {
+                categories.forEach(function(c) { if (c.id === parseInt(id)) name = c.name; });
+                layer.confirm(
+                    '确定清空分类「' + name + '」下的所有页面？<br>' +
+                    '<span style="color:#FF5722;font-size:12px;">此操作将永久删除该分类下的全部页面，不可撤销！</span>',
+                    { icon: 3, btn: ['确定清空', '取消'], title: '确认清空' },
+                    function(index) {
+                        layer.close(index);
+                        var idx = layer.load(1);
+                        fetch('/xiaoying_admin/api/pages/categories/clear/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: parseInt(id) }),
+                        }).then(function(r) { return r.json(); }).then(function(resp) {
+                            layer.close(idx);
+                            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                            layer.msg(resp.message, {icon:1});
+                            loadTree();
+                        }).catch(function() { layer.close(idx); layer.msg('清空失败', {icon:2}); });
+                    }
+                );
+            } else if (type === 'uncategorized') {
+                layer.confirm(
+                    '确定删除所有未分类的页面？<br>' +
+                    '<span style="color:#FF5722;font-size:12px;">此操作将永久删除全部未分类页面，不可撤销！</span>',
+                    { icon: 3, btn: ['确定清空', '取消'], title: '确认清空' },
+                    function(index) {
+                        layer.close(index);
+                        var idx = layer.load(1);
+                        fetch('/xiaoying_admin/api/pages/uncategorized/clear/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                        }).then(function(r) { return r.json(); }).then(function(resp) {
+                            layer.close(idx);
+                            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                            layer.msg(resp.message, {icon:1});
+                            loadTree();
+                        }).catch(function() { layer.close(idx); layer.msg('清空失败', {icon:2}); });
+                    }
+                );
+            } else if (type === 'unbound') {
+                layer.confirm(
+                    '确定删除所有未绑定域名的页面？<br>' +
+                    '<span style="color:#FF5722;font-size:12px;">此操作将永久删除全部未绑定域名页面，不可撤销！</span>',
+                    { icon: 3, btn: ['确定清空', '取消'], title: '确认清空' },
+                    function(index) {
+                        layer.close(index);
+                        var idx = layer.load(1);
+                        fetch('/xiaoying_admin/api/pages/unbound/clear/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                        }).then(function(r) { return r.json(); }).then(function(resp) {
+                            layer.close(idx);
+                            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                            layer.msg(resp.message, {icon:1});
+                            loadTree();
+                        }).catch(function() { layer.close(idx); layer.msg('清空失败', {icon:2}); });
+                    }
+                );
+            }
+        });
+    });
+
+    // 侧边栏分类搜索过滤
+    var sidebarSearchInput = document.getElementById('sidebarCatSearch');
+    if (sidebarSearchInput) {
+        sidebarSearchInput.oninput = function() {
+            var kw = this.value.trim().toLowerCase();
+            ul.querySelectorAll('li[data-filter]').forEach(function(li) {
+                var filter = li.getAttribute('data-filter');
+                // "所有分类"、"未分类"、"未绑定域名" 始终显示
+                if (filter === 'all' || filter === 'uncategorized' || filter === 'unbound') {
+                    li.style.display = '';
+                    return;
+                }
+                var text = li.textContent.toLowerCase();
+                li.style.display = (kw && text.indexOf(kw) === -1) ? 'none' : '';
+            });
+        };
+    }
+}
+
+function updateSidebarCounts() {
+    if (!treeData) return;
+    // 所有分类
+    var total = 0;
+    treeData.categories.forEach(function(c) { total += c.page_count || 0; });
+    total += treeData.uncategorized.page_count || 0;
+    total += treeData.unbound.page_count || 0;
+    var el = document.getElementById('countAll');
+    if (el) el.textContent = total;
+
+    categories.forEach(function(c) {
+        var el = document.getElementById('countCat' + c.id);
+        if (el) {
+            var found = treeData.categories.find(function(x) { return x.id === c.id; });
+            el.textContent = found ? (found.page_count || 0) : 0;
+        }
+    });
+    var elUc = document.getElementById('countUncat');
+    if (elUc) elUc.textContent = treeData.uncategorized.page_count || 0;
+    var elUb = document.getElementById('countUnbound');
+    if (elUb) elUb.textContent = treeData.unbound.page_count || 0;
+}
+
+// 管理分类弹窗
+document.getElementById('btnManageCat').addEventListener('click', function() {
+    openCategoryManager();
+});
+
+function openCategoryManager() {
+    var html = '<div style="padding:15px 20px;">';
+    html += '<div style="margin-bottom:12px;display:flex;gap:8px;">';
+    html += '<input type="text" id="newCatName" class="layui-input" placeholder="输入新分类名称" style="flex:1;">';
+    html += '<button type="button" class="layui-btn layui-btn-sm" id="newCatSaveBtn"><i class="fas fa-plus"></i> 添加</button>';
+    html += '</div>';
+    html += '<div style="max-height:300px;overflow-y:auto;" id="catListWrap">';
+    html += '</div>';
+    html += '</div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-cog" style="color:#5FB878;"></i> 管理分类',
+        area: ['450px', '420px'],
+        shadeClose: true,
+        content: html,
+        success: function(layero) {
+            renderCatManagerList(layero);
+            layero.find('#newCatSaveBtn').on('click', function() {
+                var name = layero.find('#newCatName').val().trim();
+                if (!name) { layer.msg('请输入分类名称', {icon:5}); return; }
+                var idx = layer.load(1);
+                fetch('/xiaoying_admin/api/pages/categories/create/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    layer.close(idx);
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layero.find('#newCatName').val('');
+                    layer.msg('创建成功', {icon:1});
+                    loadCategories().then(function() { renderCatManagerList(layero); loadTree(); });
+                }).catch(function() { layer.close(idx); layer.msg('创建失败', {icon:2}); });
+            });
+            layero.find('#newCatName').on('keydown', function(e) {
+                if (e.key === 'Enter') { layero.find('#newCatSaveBtn').click(); }
+            });
+        },
+    });
+}
+
+function renderCatManagerList(layero) {
+    var wrap = layero.find('#catListWrap')[0];
+    if (!wrap) return;
+    if (!categories.length) {
+        wrap.innerHTML = '<div style="text-align:center;padding:20px;color:#bbb;">暂无分类，请在上方添加</div>';
+        return;
+    }
+    var html = '';
+    categories.forEach(function(c) {
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid #f5f5f5;">';
+        html += '<i class="fas fa-folder" style="color:#5FB878;"></i>';
+        html += '<span style="flex:1;">' + escHtml(c.name) + '</span>';
+        html += '<a href="javascript:;" class="cat-mgr-rename" data-id="' + c.id + '" style="color:#5FB878;font-size:12px;">重命名</a>';
+        html += '<a href="javascript:;" class="cat-mgr-del" data-id="' + c.id + '" style="color:#e54d4d;font-size:12px;">删除</a>';
+        html += '</div>';
+    });
+    wrap.innerHTML = html;
+
+    // 重命名
+    wrap.querySelectorAll('.cat-mgr-rename').forEach(function(el) {
+        el.addEventListener('click', function() {
+            var id = parseInt(el.getAttribute('data-id'));
+            var name = '';
+            categories.forEach(function(c) { if (c.id === id) name = c.name; });
+            layer.prompt({ title: '重命名分类', value: name, formType: 0, area: ['350px'] }, function(val, idx) {
+                val = val.trim();
+                if (!val) { layer.msg('名称不能为空', {icon:5}); return; }
+                layer.close(idx);
+                var ld = layer.load(1);
+                fetch('/xiaoying_admin/api/pages/categories/update/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id, name: val }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    layer.close(ld);
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.msg('已更新', {icon:1});
+                    loadCategories().then(function() { renderCatManagerList(layero); loadTree(); });
+                }).catch(function() { layer.close(ld); layer.msg('更新失败', {icon:2}); });
+            });
+        });
+    });
+
+    // 删除
+    wrap.querySelectorAll('.cat-mgr-del').forEach(function(el) {
+        el.addEventListener('click', function() {
+            var id = parseInt(el.getAttribute('data-id'));
+            var name = '';
+            categories.forEach(function(c) { if (c.id === id) name = c.name; });
+            layer.confirm('确定删除「' + name + '」？', { icon: 3, btn: ['确定', '取消'] }, function(ci) {
+                layer.close(ci);
+                var ld = layer.load(1);
+                fetch('/xiaoying_admin/api/pages/categories/delete/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    layer.close(ld);
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.msg('已删除', {icon:1});
+                    loadCategories().then(function() { renderCatManagerList(layero); loadTree(); });
+                }).catch(function() { layer.close(ld); layer.msg('删除失败', {icon:2}); });
+            });
+        });
+    });
+}
+
+// 编辑分类（侧边栏点击）
+function openEditCategory(id) {
+    var name = '';
+    categories.forEach(function(c) { if (c.id === id) name = c.name; });
+    layer.prompt({ title: '重命名分类', value: name, formType: 0, area: ['350px'] }, function(val, idx) {
+        val = val.trim();
+        if (!val) { layer.msg('名称不能为空', {icon:5}); return; }
+        layer.close(idx);
+        var ld = layer.load(1);
+        fetch('/xiaoying_admin/api/pages/categories/update/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, name: val }),
+        }).then(function(r) { return r.json(); }).then(function(resp) {
+            layer.close(ld);
+            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+            layer.msg('已更新', {icon:1});
+            loadCategories().then(function() { loadTree(); });
+        }).catch(function() { layer.close(ld); layer.msg('更新失败', {icon:2}); });
+    });
+}
+
+// ===== 批量分类 =====
+function openBatchCategorizeModal() {
+    var catHtml = '<div style="padding:15px 20px;">';
+
+    // 分类下拉
+    var cats = window.categories || [];
+    catHtml += '<div style="margin-bottom:12px;">';
+    catHtml += '<label style="display:block;font-size:13px;color:#666;margin-bottom:6px;"><i class="fas fa-folder" style="color:#5FB878;"></i> 目标分类</label>';
+    catHtml += '<select id="batchCatSelect" class="layui-input" style="height:36px;">';
+    catHtml += '<option value="">请选择分类...</option>';
+    cats.forEach(function(c) {
+        catHtml += '<option value="' + c.id + '">' + escHtml(c.name) + '</option>';
+    });
+    catHtml += '</select>';
+    catHtml += '</div>';
+
+    // 域名过滤
+    catHtml += '<div style="margin-bottom:12px;">';
+    catHtml += '<label style="display:block;font-size:13px;color:#666;margin-bottom:6px;"><i class="fas fa-filter"></i> 域名过滤（可选，留空则全部未分类页面）</label>';
+    catHtml += '<input type="text" id="batchCatDomain" class="layui-input" placeholder="如：example.com">';
+    catHtml += '</div>';
+
+    // 说明
+    catHtml += '<div style="font-size:12px;color:#999;margin-bottom:12px;">';
+    catHtml += '<i class="fas fa-info-circle"></i> 将所有未分类的页面批量分配到所选分类。';
+    catHtml += '</div>';
+
+    catHtml += '<div style="text-align:center;">';
+    catHtml += '<button type="button" class="layui-btn layui-btn-sm layui-btn-normal" id="batchCatSubmitBtn"><i class="fas fa-check"></i> 执行批量分类</button>';
+    catHtml += '</div>';
+    catHtml += '</div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-tags" style="color:#5FB878;"></i> 批量分类',
+        area: ['380px', '300px'],
+        shadeClose: true,
+        content: catHtml,
+        success: function(layero) {
+            layero.find('#batchCatSubmitBtn').on('click', function() {
+                var categoryId = parseInt(layero.find('#batchCatSelect').val());
+                if (!categoryId) { layer.msg('请选择目标分类', {icon:2}); return; }
+                var domain = layero.find('#batchCatDomain').val().trim();
+                var btn = this;
+                btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+                var body = { category_id: categoryId };
+                if (domain) body.domain = domain;
+                fetch('/xiaoying_admin/api/pages/saved/batch-categorize/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    if (resp.ok) {
+                        layer.msg(resp.message || '批量分类成功', {icon:1});
+                        layer.closeAll();
+                        loadTree();
+                    } else {
+                        layer.msg(resp.error || '批量分类失败', {icon:2});
+                        btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> 执行批量分类';
+                    }
+                }).catch(function() {
+                    layer.msg('网络错误', {icon:2});
+                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> 执行批量分类';
+                });
+            });
+        },
+    });
+}
+</script>

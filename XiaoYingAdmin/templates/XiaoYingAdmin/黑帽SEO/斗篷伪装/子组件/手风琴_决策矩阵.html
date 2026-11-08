@@ -1,0 +1,40 @@
+{# ===== 手风琴项 1：决策矩阵（默认展开） ===== #}
+<div class="layui-colla-item">
+    <h2 class="layui-colla-title"><i class="fas fa-table"></i> 决策矩阵</h2>
+    <div class="layui-colla-content layui-show">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>场景</th>
+                    <th>is_spider</th>
+                    <th>is_from_search</th>
+                    <th>当前策略</th>
+                    <th>说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><i class="fas fa-robot"></i> 爬虫</td>
+                    <td>✅ 是</td>
+                    <td>—</td>
+                    <td>{{ config.spider_action }}</td>
+                    <td>爬虫抓取时执行对应策略以提高排名</td>
+                </tr>
+                <tr>
+                    <td><i class="fas fa-user"></i> 搜索引擎用户</td>
+                    <td>❌ 否</td>
+                    <td>✅ 是</td>
+                    <td>{{ config.search_action }}</td>
+                    <td>真实用户从搜索引擎点击跳转时执行对应策略</td>
+                </tr>
+                <tr>
+                    <td><i class="fas fa-user"></i> 直接访问</td>
+                    <td>❌ 否</td>
+                    <td>❌ 否</td>
+                    <td>{{ config.direct_action }}</td>
+                    <td>用户直接访问或从其他网站跳转时执行对应策略</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

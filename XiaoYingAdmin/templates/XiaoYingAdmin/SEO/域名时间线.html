@@ -1,0 +1,217 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}{{ domain.domain }} 时间线 — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+    .tl-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        gap: 10px;
+    }
+    .tl-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .tl-back {
+        font-size: 13px;
+        color: #5FB878;
+        text-decoration: none;
+    }
+    .tl-back:hover { text-decoration: underline; }
+    .tl-domain-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #333;
+    }
+    .tl-type-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    .tl-type-root { background: #e8f4ff; color: #1890ff; }
+    .tl-type-multi { background: #fff7e6; color: #fa8c16; }
+    .tl-remark {
+        font-size: 12px; color: #999; margin-left: 8px;
+    }
+    .tl-empty {
+        text-align: center; padding: 80px 0; color: #ccc;
+    }
+    .tl-empty i { font-size: 48px; display: block; margin-bottom: 12px; }
+    .tl-empty p { font-size: 14px; margin: 0; }
+    .tl-record-actions {
+        margin-top: 6px;
+    }
+    .tl-record-actions button {
+        font-size: 12px;
+        padding: 1px 8px;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #999;
+        transition: color 0.15s;
+    }
+    .tl-record-actions button:hover { color: #1890ff; }
+    .tl-record-actions .tl-del:hover { color: #ff4d4f; }
+    /* 时间线内容区样式增强 */
+    .layui-timeline-content p {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #555;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="tl-header">
+    <div class="tl-header-left">
+        <a class="tl-back" href="{% url 'domain_seo_domains' %}"><i class="fas fa-arrow-left"></i> 返回域名列表</a>
+        <span class="tl-domain-name">{{ domain.domain }}</span>
+        <span class="tl-type-badge tl-type-{{ domain.domain_type }}">{{ domain.domain_type_label }}</span>
+        {% if domain.remark %}
+        <span class="tl-remark"><i class="fas fa-tag"></i> {{ domain.remark }}</span>
+        {% endif %}
+    </div>
+    <div>
+        <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="openRecordModal(null)">
+            <i class="fas fa-plus"></i> 新增记录
+        </button>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-header">
+        <i class="fas fa-clock"></i> 快排手段时间线
+        <span style="font-size:12px;color:#999;margin-left:8px;">共 <span id="recordCount">0</span> 条记录</span>
+    </div>
+    <div class="layui-card-body" id="timelineContainer">
+        <div class="tl-empty">
+            <i class="fas fa-hourglass-start"></i>
+            <p>暂无记录，点击「新增记录」添加</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+var domainId = {{ domain.id }};
+var records = [];
+
+function renderTimeline(data) {
+    var container = document.getElementById('timelineContainer');
+    document.getElementById('recordCount').textContent = data.length;
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div class="tl-empty"><i class="fas fa-hourglass-start"></i><p>暂无记录，点击「新增记录」添加</p></div>';
+        return;
+    }
+    var html = '<ul class="layui-timeline">';
+    for (var i = 0; i < data.length; i++) {
+        var r = data[i];
+        var isLast = (i === data.length - 1);
+        html += '<li class="layui-timeline-item">' +
+            '<i class="layui-icon layui-timeline-axis">' + (isLast ? '&#xe63f;' : '&#xe63f;') + '</i>' +
+            '<div class="layui-timeline-content layui-text">' +
+                '<h3 class="layui-timeline-title">' + escHtml(r.action_date) + '</h3>' +
+                '<p>' + escHtml(r.description) + '</p>' +
+                '<div class="tl-record-actions">' +
+                    '<button onclick="openRecordModal(' + r.id + ')"><i class="fas fa-edit"></i> 编辑</button>' +
+                    ' <button class="tl-del" onclick="deleteRecord(' + r.id + ')"><i class="fas fa-trash"></i> 删除</button>' +
+                '</div>' +
+            '</div>' +
+        '</li>';
+    }
+    html += '<li class="layui-timeline-item" style="padding-bottom:0;">' +
+        '<i class="layui-icon layui-timeline-axis">&#xe63f;</i>' +
+        '<div class="layui-timeline-content layui-text">' +
+            '<div style="padding:6px 0;color:#bbb;font-size:12px;">记录开始</div>' +
+        '</div>' +
+    '</li></ul>';
+    container.innerHTML = html;
+}
+
+function loadRecords() {
+    fetch('/xiaoying_admin/api/seo/domains/' + domainId + '/records/')
+        .then(function(r){return r.json()})
+        .then(function(data){
+            if (data.ok) { records = data.records || []; renderTimeline(records); }
+        })
+        .catch(function(){});
+}
+
+// ===== 新增/编辑记录 =====
+function openRecordModal(id) {
+    var r = null;
+    if (id) { for (var i=0;i<records.length;i++) { if (records[i].id===id) { r=records[i]; break; } } }
+
+    var title = r ? '编辑记录' : '新增记录';
+    var dateVal = r ? r.action_date : new Date().toISOString().substring(0, 16).replace('T', ' ');
+    var descVal = r ? escAttr(r.description) : '';
+
+    var html =
+        '<div style="padding:20px 25px 0 25px;">' +
+        '<div class="layui-form-item" style="margin-bottom:12px;">' +
+            '<label style="font-weight:500;display:block;margin-bottom:4px;color:#333;">操作时间 <span style="color:#ff4d4f;">*</span></label>' +
+            '<input id="fDate" type="datetime-local" value="' + dateVal + '" class="layui-input" style="height:34px;font-size:13px;">' +
+        '</div>' +
+        '<div class="layui-form-item" style="margin-bottom:12px;">' +
+            '<label style="font-weight:500;display:block;margin-bottom:4px;color:#333;">操作描述 <span style="color:#ff4d4f;">*</span></label>' +
+            '<textarea id="fDesc" class="layui-input" style="height:100px;resize:vertical;font-size:13px;padding:6px 10px;" placeholder="如：提交了必应站长&#10;如：使用了蜘蛛池&#10;如：与 example.com 交换友情链接">' + descVal + '</textarea>' +
+        '</div></div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-' + (r?'edit':'plus-circle') + '" style="color:' + (r?'#ffa940':'#5FB878') + ';"></i> ' + title,
+        area: ['480px','340px'],
+        shadeClose: true,
+        content: html,
+        btn: ['保存','取消'],
+        yes: function(index) {
+            var date = document.getElementById('fDate').value;
+            var desc = document.getElementById('fDesc').value.trim();
+            if (!date) { layer.msg('请选择日期', {icon:2}); return; }
+            if (!desc) { layer.msg('请输入操作描述', {icon:2}); return; }
+
+            var url = r
+                ? '/xiaoying_admin/api/seo/records/' + r.id + '/update/'
+                : '/xiaoying_admin/api/seo/domains/' + domainId + '/records/create/';
+            fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action_date: date, description: desc}),
+            }).then(function(r){return r.json()}).then(function(data){
+                if (data.ok) { layer.msg(data.message, {icon:1}); layer.close(index); loadRecords(); }
+                else { layer.msg(data.error||'操作失败', {icon:2}); }
+            }).catch(function(){ layer.msg('网络错误', {icon:2}); });
+        }
+    });
+}
+
+// ===== 删除记录 =====
+function deleteRecord(id) {
+    layer.confirm('确定删除该记录？', {icon:3,title:'确认',btn:['确定','取消']}, function(idx){
+        fetch('/xiaoying_admin/api/seo/records/' + id + '/delete/', {method:'POST'})
+        .then(function(r){return r.json()}).then(function(data){
+            if (data.ok) { layer.msg('已删除', {icon:1}); loadRecords(); }
+            else { layer.msg(data.error||'删除失败', {icon:2}); }
+        }).catch(function(){ layer.msg('网络错误', {icon:2}); })
+        .finally(function(){ layer.close(idx); });
+    });
+}
+
+layui.use(['layer'], function(){
+    layer = layui.layer;
+    loadRecords();
+});
+</script>
+{% endblock %}

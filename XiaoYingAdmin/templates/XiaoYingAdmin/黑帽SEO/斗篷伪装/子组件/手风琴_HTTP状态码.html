@@ -1,0 +1,75 @@
+{# ===== 手风琴项 2：HTTP 重定向状态码详解 — 权重传递对照表 ===== #}
+<div class="layui-colla-item">
+    <h2 class="layui-colla-title"><i class="fas fa-code-branch"></i> HTTP 重定向状态码详解 — 权重传递对照表</h2>
+    <div class="layui-colla-content">
+        <div class="layui-alert layui-alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>黑帽 SEO 核心技巧：</strong>选择不同的重定向状态码，决定搜索引擎是否将原页面的权重传递到目标 URL。
+            这是斗篷伪装中"爬虫走 301 到 SEO 页，用户走 302 到推广页"的关键。
+        </div>
+
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>状态码</th>
+                    <th>名称</th>
+                    <th>权重传递</th>
+                    <th>请求方法</th>
+                    <th>黑帽 SEO 用法</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background:#f8fff8;">
+                    <td><strong style="color:#5FB878;">301</strong></td>
+                    <td><strong>Moved Permanently</strong></td>
+                    <td><span style="color:#5FB878;">✅ 完全传递</span></td>
+                    <td>GET → GET<br>POST → GET</td>
+                    <td>
+                        <strong>爬虫首选。</strong>将爬虫 301 到 SEO 优化页，原页面排名和权重完全转移。<br>
+                        <small>示例：爬虫访问 /product/ → 301 → /seo-optimized-product/</small>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong style="color:#FF9B44;">302</strong></td>
+                    <td><strong>Found</strong></td>
+                    <td><span style="color:#FF9B44;">❌ 不传递</span></td>
+                    <td>GET → GET<br>POST → GET</td>
+                    <td>
+                        <strong>用户跳转首选。</strong>将搜索引擎用户 302 到推广/变现页，原 URL 排名不受影响。<br>
+                        <small>示例：用户从 Google 点击 → 302 → /landing-page/</small>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong style="color:#999;">303</strong></td>
+                    <td><strong>See Other</strong></td>
+                    <td><span style="color:#999;">❌ 不传递</span></td>
+                    <td>POST → GET<br>（方法变更）</td>
+                    <td>
+                        SEO 中较少使用。主要用于 POST 后跳转 GET，避免表单重复提交。<br>
+                        <small>不适合作为斗篷伪装的主要策略。</small>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong style="color:#FF9B44;">307</strong></td>
+                    <td><strong>Temporary Redirect</strong></td>
+                    <td><span style="color:#FF9B44;">❌ 不传递</span></td>
+                    <td>方法不变<br>POST → POST</td>
+                    <td>
+                        <strong>API/表单场景。</strong>类似 302，但保证请求方法不变。用于需要保留请求方法的斗篷场景。<br>
+                        <small>搜索引擎行为与 302 一致，不传递权重。</small>
+                    </td>
+                </tr>
+                <tr style="background:#f8fff8;">
+                    <td><strong style="color:#5FB878;">308</strong></td>
+                    <td><strong>Permanent Redirect</strong></td>
+                    <td><span style="color:#5FB878;">✅ 完全传递</span></td>
+                    <td>方法不变<br>POST → POST</td>
+                    <td>
+                        <strong>爬虫备选。</strong>类似 301，但保证请求方法不变。适用于需要保留请求方法的永久跳转。<br>
+                        <small>搜索引擎行为与 301 一致，完全传递权重。</small>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

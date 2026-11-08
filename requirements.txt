@@ -1,0 +1,6 @@
+-i https://pypi.tuna.tsinghua.edu.cn/simple
+Django # Django 框架,用来构建后端API与前端交互
+django-cors-headers # 跨域请求头,用来允许各种前端访问后端API
+requests # HTTP 库,用来发送 HTTP 请求
+python-dotenv # 用来加载环境变量
+loguru # 日志库,XiaoYingAdmin/middleware/layout.py 中间件依赖

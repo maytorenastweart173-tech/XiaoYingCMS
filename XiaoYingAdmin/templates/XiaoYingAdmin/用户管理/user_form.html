@@ -1,0 +1,238 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}{% if form_mode == 'create' %}创建用户{% else %}编辑用户 — {{ target_user.username }}{% endif %} — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+    .user-form { padding: 0 4px; max-width: 600px; }
+    .user-form h2 { font-size:18px;font-weight:500;margin-bottom:20px; }
+    .user-form h2 i { color:#5FB878; }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        color: #393D49;
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+    .form-group label .required { color: #e54d4d; }
+    .form-group .help-text {
+        font-size: 12px;
+        color: #999;
+        margin-top: 2px;
+    }
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group input[type="password"] {
+        width: 100%;
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+        transition: border-color .2s;
+    }
+    .form-group input:focus { border-color: #5FB878; }
+
+    .form-group .checkbox-group {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 6px 0;
+    }
+    .form-group .checkbox-group label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 400;
+        cursor: pointer;
+    }
+    .form-group .checkbox-group input[type="checkbox"] {
+        width: 15px; height: 15px;
+        accent-color: #5FB878;
+    }
+
+    .form-group select {
+        width: 100%;
+        height: 120px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+        padding: 4px;
+    }
+    .form-group select option { padding: 4px 8px; }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #eee;
+    }
+    .form-actions .btn-submit {
+        padding: 8px 24px;
+        background: #5FB878;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background .2s;
+    }
+    .form-actions .btn-submit:hover { background: #4aa86a; }
+    .form-actions .btn-cancel {
+        padding: 8px 24px;
+        background: #fff;
+        color: #666;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        font-size: 14px;
+        text-decoration: none;
+        transition: all .2s;
+    }
+    .form-actions .btn-cancel:hover { border-color: #5FB878; color: #5FB878; }
+
+    .success-msg {
+        background: #f0fff4;
+        border: 1px solid #c3e6cb;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        color: #2d6a4f;
+        font-size: 13px;
+    }
+    .error-msg {
+        background: #fff5f5;
+        border: 1px solid #ffe0e0;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        color: #e54d4d;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="user-form">
+    <h2>
+        {% if form_mode == 'create' %}
+        <i class="fas fa-user-plus"></i> 创建用户
+        {% else %}
+        <i class="fas fa-user-edit"></i> 编辑用户 — {{ target_user.username }}
+        {% endif %}
+    </h2>
+
+    {% if success %}
+    <div class="success-msg">
+        <i class="fas fa-check-circle"></i> {{ success }}
+        {% if form_mode == 'create' %}
+        <div style="margin-top:8px;">
+            <a href="{% url 'user_list' %}" style="color:#5FB878;">返回用户列表</a>
+            &nbsp;|&nbsp;
+            <a href="{% url 'user_create' %}" style="color:#5FB878;">继续创建</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="error-msg">
+        <i class="fas fa-exclamation-circle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" autocomplete="off">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label><span class="required">*</span> 用户名</label>
+            <input type="text" name="username" required
+                   value="{% if target_user %}{{ target_user.username }}{% endif %}"
+                   placeholder="登录用户名">
+        </div>
+
+        <div class="form-group">
+            <label>邮箱</label>
+            <input type="email" name="email"
+                   value="{% if target_user %}{{ target_user.email }}{% endif %}"
+                   placeholder="电子邮箱">
+        </div>
+
+        <div class="form-group">
+            <label>手机号</label>
+            <input type="text" name="phone"
+                   value="{% if target_user %}{{ target_user.phone }}{% endif %}"
+                   placeholder="手机号（可选）">
+        </div>
+
+        {% if form_mode == 'create' %}
+        <div class="form-group">
+            <label><span class="required">*</span> 密码</label>
+            <input type="password" name="password" required
+                   placeholder="至少 6 位">
+        </div>
+        {% else %}
+            {% if can_reset_password %}
+            <div class="form-group">
+                <label>重置密码</label>
+                <input type="password" name="new_password"
+                       placeholder="留空则不修改密码">
+                <div class="help-text">如需修改密码，请输入新密码（至少 6 位）</div>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        <div class="form-group">
+            <label>状态与权限</label>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" name="is_active" checked
+                           {% if target_user and target_user.is_active %}checked{% endif %}>
+                    启用
+                </label>
+                <label>
+                    <input type="checkbox" name="is_staff"
+                           {% if target_user and target_user.is_staff %}checked{% endif %}>
+                    管理员（可访问后台）
+                </label>
+                <label>
+                    <input type="checkbox" name="is_superuser"
+                           {% if target_user and target_user.is_superuser %}checked{% endif %}>
+                    超级管理员（所有权限）
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>用户组</label>
+            <select name="groups" multiple>
+                {% for g in all_groups %}
+                <option value="{{ g.id }}"
+                    {% if user_group_ids and g.id in user_group_ids %}selected{% endif %}>
+                    {{ g.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <div class="help-text">按住 Ctrl 多选。用户组在 Django 内置 auth_group 中管理。</div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-submit">
+                {% if form_mode == 'create' %}
+                <i class="fas fa-save"></i> 创建用户
+                {% else %}
+                <i class="fas fa-save"></i> 保存修改
+                {% endif %}
+            </button>
+            <a href="{% url 'user_list' %}" class="btn-cancel">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

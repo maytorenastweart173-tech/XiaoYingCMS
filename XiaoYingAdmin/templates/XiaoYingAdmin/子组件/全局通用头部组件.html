@@ -1,0 +1,163 @@
+{# 全局通用头部组件 — 始终位于内容区域顶部，由 template.html 引入 #}
+<div class="global-header">
+    <div class="global-header-inner">
+        <span class="header-spacer"></span>
+        <button type="button" class="preview-btn" id="previewSiteBtn"><i class="fas fa-external-link-alt"></i> 预览网站</button>
+        <div class="user-dropdown">
+            <button type="button" class="user-btn" id="userDropdownBtn">
+                <i class="fas fa-user-circle"></i>
+                <span class="user-name">{{ request.user.username }}</span>
+                <i class="fas fa-caret-down"></i>
+            </button>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="{% url 'change_password' %}" class="dropdown-item">
+                    <i class="fas fa-key"></i> 修改密码
+                </a>
+                {% if request.user.is_superuser or request.user.is_staff %}
+                <a href="{% url 'user_list' %}" class="dropdown-item">
+                    <i class="fas fa-users-cog"></i> 用户管理
+                </a>
+                {% endif %}
+                <div class="dropdown-divider"></div>
+                <a href="{% url 'logout' %}" class="dropdown-item logout-item">
+                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .global-header {
+        /* sticky 跟随滚动容器（.main-content）顶部固定，滚动时不下移。
+           top 用 -15px 抵消 .main-content 的 padding-top:15px，让 header 容器紧贴容器物理顶部。
+           header 内部用对称 padding + flex 居中，让版本徽章、按钮等元素视觉居中 */
+        position: sticky;
+        top: -15px;
+        z-index: 100;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
+        border-bottom: 1px solid #e6e6e6;
+        padding: 4px 15px;
+        margin: -15px -15px 12px -15px;
+    }
+    .global-header-inner {
+        display: flex;
+        align-items: center;            /* 居中：让版本徽章/按钮/文字视觉居中 */
+        gap: 10px;
+        line-height: 1;
+        min-height: 24px;               /* 给个最小高度，避免按钮/徽章挤压文字 */
+    }
+    .header-spacer { flex: 1; }
+    .version-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        background: #5FB878;
+        color: #fff;
+        border-radius: 10px;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .preview-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 14px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        background: #fff;
+        color: #666;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .preview-btn:hover { border-color: #5FB878; color: #5FB878; }
+    .preview-btn:active { opacity: .8; }
+
+    {# 用户下拉菜单 #}
+    .user-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .user-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        background: #fff;
+        color: #393D49;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .user-btn:hover { border-color: #5FB878; color: #5FB878; }
+    .user-btn i.fa-user-circle { color: #5FB878; font-size: 15px; }
+    .user-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        margin-top: 4px;
+        min-width: 160px;
+        background: #fff;
+        border: 1px solid #e6e6e6;
+        border-radius: 6px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        z-index: 999;
+        padding: 4px 0;
+    }
+    .dropdown-menu.show { display: block; }
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        color: #393D49;
+        font-size: 13px;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .dropdown-item:hover { background: #f5f8f5; color: #5FB878; }
+    .dropdown-item i { width: 16px; text-align: center; color: #999; }
+    .dropdown-item:hover i { color: #5FB878; }
+    .dropdown-item.logout-item { color: #e54d4d; }
+    .dropdown-item.logout-item:hover { background: #fff5f5; color: #e54d4d; }
+    .dropdown-item.logout-item:hover i { color: #e54d4d; }
+    .dropdown-divider {
+        height: 1px;
+        background: #e6e6e6;
+        margin: 4px 0;
+    }
+</style>
+
+<script>
+(function() {
+    var btn = document.getElementById('previewSiteBtn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        window.open(window.location.origin, '_blank');
+    });
+})();
+
+(function() {
+    // 用户下拉菜单 toggle
+    var dropdownBtn = document.getElementById('userDropdownBtn');
+    var dropdownMenu = document.getElementById('dropdownMenu');
+    if (!dropdownBtn || !dropdownMenu) return;
+
+    dropdownBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('show');
+    });
+
+    // 点击页面其他区域关闭菜单
+    document.addEventListener('click', function(e) {
+        if (!dropdownMenu.contains(e.target) && e.target !== dropdownBtn) {
+            dropdownMenu.classList.remove('show');
+        }
+    });
+})();
+</script>

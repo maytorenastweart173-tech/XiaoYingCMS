@@ -1,0 +1,28 @@
+{# ===== 手风琴项 3：推荐组合策略 ===== #}
+<div class="layui-colla-item">
+    <h2 class="layui-colla-title"><i class="fas fa-lightbulb"></i> 推荐组合策略</h2>
+    <div class="layui-colla-content">
+        <table class="layui-table">
+            <thead>
+                <tr><th>场景</th><th>推荐行为</th><th>策略说明</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>爬虫抓取</td>
+                    <td><span class="layui-btn layui-btn-xs layui-btn-normal" style="background:#5FB878;">redirect (301)</span></td>
+                    <td>将爬虫永久重定向到精心优化的 SEO 页面，原页面权重完全传递过去。</td>
+                </tr>
+                <tr>
+                    <td>搜索引擎用户</td>
+                    <td><span class="layui-btn layui-btn-xs layui-btn-warm">redirect (302)</span></td>
+                    <td>将真实用户临时重定向到推广/变现页面，原页面排名不受影响。</td>
+                </tr>
+                <tr>
+                    <td>直接访问</td>
+                    <td><span class="layui-btn layui-btn-xs layui-btn-primary">pass_through</span></td>
+                    <td>放行，返回正常内容。避免影响正常用户体验。</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

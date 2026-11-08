@@ -1,0 +1,237 @@
+<!-- AI 提示词管理面板 — 查看、切换、创建提示词版本 -->
+<style>
+.prompt-mgr { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.05); margin-top: 15px; }
+.prompt-mgr-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #e6e6e6; }
+.prompt-mgr-header h3 { margin: 0; font-size: 15px; color: #393D49; }
+.prompt-mgr-list { list-style: none; margin: 0; padding: 0; }
+.prompt-mgr-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #f2f2f2; cursor: pointer; transition: background .15s; }
+.prompt-mgr-item:hover { background: #f8f8f8; }
+.prompt-mgr-item:last-child { border-bottom: none; }
+.prompt-mgr-item .info { flex: 1; }
+.prompt-mgr-item .info .name { font-weight: 600; color: #333; }
+.prompt-mgr-item .info .meta { font-size: 12px; color: #999; margin-top: 3px; }
+.prompt-mgr-item .actions { flex-shrink: 0; margin-left: 8px; display: none; align-items: center; gap: 6px; }
+.prompt-mgr-item:hover .actions { display: flex; }
+.prompt-mgr-item .switch-wrap { flex-shrink: 0; margin-left: 8px; display: flex; align-items: center; }
+.badge-version { display: inline-block; background: #5fb878; color: #fff; font-size: 11px; padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
+.badge-inactive { background: #FF5722; }
+.toggle-switch { position: relative; width: 38px; height: 22px; cursor: pointer; }
+.toggle-switch input { display: none; }
+.toggle-switch .slider { position: absolute; inset: 0; background: #ddd; border-radius: 22px; transition: background .25s; }
+.toggle-switch .slider::after { content: ''; position: absolute; width: 18px; height: 18px; left: 2px; top: 2px; background: #fff; border-radius: 50%; transition: transform .25s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.toggle-switch input:checked + .slider { background: #5FB878; }
+.toggle-switch input:checked + .slider::after { transform: translateX(16px); }
+.prompt-mgr .list-scroll { max-height: 480px; overflow-y: auto; overflow-x: hidden; }
+</style>
+
+<div class="prompt-mgr">
+    <div class="prompt-mgr-header">
+        <h3><i class="fas fa-robot"></i> AI 提示词管理</h3>
+        <div>
+            <button class="layui-btn layui-btn-sm layui-btn-primary" id="btn-refresh-prompts"><i class="fas fa-sync-alt"></i></button>
+            <button class="layui-btn layui-btn-sm" id="btn-new-prompt"><i class="fas fa-plus"></i> 新建版本</button>
+        </div>
+    </div>
+    <div id="prompt-list-container" class="list-scroll">
+        <p style="padding: 20px; text-align: center; color: #999;">加载中...</p>
+    </div>
+</div>
+
+<!-- 新建 / 编辑提示词的弹窗模板（隐藏） -->
+<div id="prompt-editor-modal" style="display:none;">
+    <form class="layui-form" style="padding: 20px 15px 0;">
+        <div class="layui-form-item">
+            <label class="layui-form-label">分类</label>
+            <div class="layui-input-block">
+                <select id="prompt-editor-category">
+                    <option value="page_generation">页面生成</option>
+                    <option value="page_optimization">页面优化</option>
+                    <option value="custom">自定义</option>
+                </select>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">名称</label>
+            <div class="layui-input-block">
+                <input type="text" id="prompt-editor-name" class="layui-input" placeholder="如: 通用页面生成 v3">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">内容</label>
+            <div class="layui-input-block">
+                <textarea id="prompt-editor-content" class="layui-textarea" style="min-height: 200px;" placeholder="提示词内容..."></textarea>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">变更说明</label>
+            <div class="layui-input-block">
+                <input type="text" id="prompt-editor-desc" class="layui-input" placeholder="如: 调整了输出格式要求">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button type="button" class="layui-btn" id="prompt-editor-save">保存为新版本</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+(function() {
+    var container = document.getElementById('prompt-list-container');
+    var modalHtml = document.getElementById('prompt-editor-modal').innerHTML;
+
+    function savePrompt(data, done) {
+        if (!data.name) { layer.msg('请输入名称'); return; }
+        if (!data.content) { layer.msg('请输入内容'); return; }
+        fetch('/xiaoying_admin/api/prompts/save/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        }).then(function(r) { return r.json(); }).then(function(resp) {
+            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+            if (done) done(resp);
+        }).catch(function() { layer.msg('保存失败', {icon:2}); });
+    }
+
+    function loadPrompts() {
+        container.innerHTML = '<p style="padding: 20px; text-align: center; color: #999;">加载中...</p>';
+        fetch('/xiaoying_admin/api/prompts/')
+            .then(function(r) { return r.json(); })
+            .then(function(list) {
+                if (!list || list.length === 0) {
+                    container.innerHTML = '<p style="padding: 20px; text-align: center; color: #999;">暂无提示词记录，点击"新建版本"创建</p>';
+                    return;
+                }
+                var html = '<ul class="prompt-mgr-list">';
+                for (var i = 0; i < list.length; i++) {
+                    var p = list[i];
+                    var activeClass = p.is_active ? '' : 'badge-inactive';
+                    var activeText = p.is_active ? '启用中' : '已停用';
+                    var checked = p.is_active ? 'checked' : '';
+                    html += '<li class="prompt-mgr-item" data-id="' + p.id + '">';
+                    html += '<div class="info">';
+                    html += '<span class="name">' + escHtml(p.name) + '</span>';
+                    html += '<span class="badge-version ' + activeClass + '">v' + p.version + ' · ' + activeText + '</span>';
+                    html += '<div class="meta">' + escHtml(p.category_display || p.category) + ' | ' + escHtml(p.description || '无说明') + '</div>';
+                    html += '</div>';
+                    html += '<div class="switch-wrap" onclick="event.stopPropagation();">';
+                    html += '<label class="toggle-switch"><input type="checkbox" class="prompt-toggle" ' + checked + ' data-id="' + p.id + '"><span class="slider"></span></label>';
+                    html += '</div>';
+                    html += '<div class="actions">';
+                    html += '<button class="layui-btn layui-btn-xs layui-btn-primary btn-edit" data-id="' + p.id + '" title="查看/编辑"><i class="fas fa-edit"></i></button>';
+                    html += '<button class="layui-btn layui-btn-xs layui-btn-danger btn-delete-prompt" data-id="' + p.id + '" title="删除"><i class="fas fa-trash"></i></button>';
+                    html += '</div>';
+                    html += '</li>';
+                }
+                html += '</ul>';
+                container.innerHTML = html;
+            })
+            .catch(function() {
+                container.innerHTML = '<p style="padding: 20px; text-align: center; color: #FF5722;">加载失败</p>';
+            });
+    }
+
+    // 事件委托
+    container.addEventListener('change', function(e) {
+        var cb = e.target.closest('.prompt-toggle');
+        if (!cb) return;
+        fetch('/xiaoying_admin/api/prompts/activate/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: parseInt(cb.getAttribute('data-id')), is_active: cb.checked }),
+        }).then(function(r) { return r.json(); }).then(function(resp) {
+            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+            loadPrompts();
+        });
+    });
+
+    container.addEventListener('click', function(e) {
+        var item = e.target.closest('.prompt-mgr-item');
+        if (!item) return;
+        var id = parseInt(item.getAttribute('data-id'));
+
+        // 删除
+        if (e.target.closest('.btn-delete-prompt')) {
+            e.stopPropagation();
+            layer.confirm('确定删除此提示词吗？', { icon: 3, btn: ['确定', '取消'], title: '确认删除' }, function(index) {
+                fetch('/xiaoying_admin/api/prompts/delete/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.close(index);
+                    layer.msg('已删除', {icon:1});
+                    loadPrompts();
+                }).catch(function() { layer.msg('删除失败', {icon:2}); });
+            });
+            return;
+        }
+
+        // 点击行或编辑按钮 → 打开编辑器
+        if (e.target.closest('.btn-edit') || !e.target.closest('.switch-wrap')) {
+            fetch('/xiaoying_admin/api/prompts/' + id + '/')
+                .then(function(r) { return r.json(); })
+                .then(function(p) {
+                    layer.open({
+                        type: 1,
+                        title: '编辑: ' + p.name + ' (v' + p.version + ')',
+                        area: ['700px', '520px'],
+                        shadeClose: true,
+                        content: modalHtml,
+                        success: function(layero) {
+                            layui.use('form', function() { layui.form.render('select'); });
+                            layero.find('#prompt-editor-category').val(p.category);
+                            layero.find('#prompt-editor-name').val(p.name);
+                            layero.find('#prompt-editor-content').val(p.content);
+                            layero.find('#prompt-editor-desc').val('基于 v' + p.version + ' 的更新版本');
+                            layero.find('#prompt-editor-save').on('click', function() {
+                                savePrompt({
+                                    category: layero.find('#prompt-editor-category').val(),
+                                    name: layero.find('#prompt-editor-name').val().trim(),
+                                    content: layero.find('#prompt-editor-content').val().trim(),
+                                    description: layero.find('#prompt-editor-desc').val().trim(),
+                                    base_id: id,
+                                }, function(resp) {
+                                    layer.closeAll();
+                                    layer.msg(resp.message, {icon:1});
+                                    loadPrompts();
+                                });
+                            });
+                        },
+                    });
+                });
+        }
+    });
+
+    document.getElementById('btn-refresh-prompts').addEventListener('click', loadPrompts);
+
+    document.getElementById('btn-new-prompt').addEventListener('click', function() {
+        layer.open({
+            type: 1,
+            title: '新建提示词版本',
+            area: ['700px', '520px'],
+            shadeClose: true,
+            content: modalHtml,
+            success: function(layero) {
+                layui.use('form', function() { layui.form.render('select'); });
+                layero.find('#prompt-editor-save').on('click', function() {
+                    savePrompt({
+                        category: layero.find('#prompt-editor-category').val(),
+                        name: layero.find('#prompt-editor-name').val().trim(),
+                        content: layero.find('#prompt-editor-content').val().trim(),
+                        description: layero.find('#prompt-editor-desc').val().trim(),
+                    }, function(resp) {
+                        layer.closeAll();
+                        layer.msg(resp.message, {icon:1});
+                        loadPrompts();
+                    });
+                });
+            },
+        });
+    });
+
+    loadPrompts();
+})();
+</script>

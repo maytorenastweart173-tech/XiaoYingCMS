@@ -1,0 +1,74 @@
+/*
+ * 左侧菜单专用样式 — 所有选择器都以 .sidebar-wrapper 为前缀，
+ * 仅作用于侧边栏容器内，不会污染全局样式环境。
+ */
+
+/* ================================
+   侧边栏容器
+   ================================ */
+.sidebar-wrapper {
+    flex-shrink: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.sidebar-menu {
+    width: 220px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #393D49;
+}
+
+/* ================================
+   侧边栏头部
+   ================================ */
+.sidebar-header {
+    flex-shrink: 0;
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid #4E5465;
+}
+
+.sidebar-header h3 {
+    color: #fff;
+    margin: 0;
+    font-size: 16px;
+}
+
+/* ================================
+   LayUI 导航树覆盖（仅在侧边栏内生效）
+   ================================ */
+.sidebar-menu .layui-nav-tree {
+    flex: 1;
+    width: 100%;
+    padding: 0;
+    overflow-y: auto;
+    border-radius: 0;
+    margin-top: 0;
+    background-color: transparent;
+}
+
+/* 侧边栏内菜单链接文字 */
+.sidebar-menu .layui-nav-item a {
+    font-size: 14px;
+}
+
+/* 侧边栏内的图标间距 */
+.sidebar-menu .layui-icon {
+    margin-right: 6px;
+}
+
+/* ================================
+   空菜单提示
+   ================================ */
+.sidebar-menu .sidebar-empty {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.sidebar-menu .sidebar-empty span {
+    color: #999;
+}
+
+

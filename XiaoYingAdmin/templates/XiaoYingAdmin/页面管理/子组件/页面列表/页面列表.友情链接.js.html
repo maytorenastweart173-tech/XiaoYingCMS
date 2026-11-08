@@ -1,0 +1,140 @@
+<script>
+// ============================================================
+// 页面列表 — 友情链接管理弹窗
+// 支持配置应用范围（全部页面 / 指定分类），添加后自动同步到目标页面
+// 依赖：全局函数 escHtml()
+// ============================================================
+
+// 缓存分类列表
+var _friendLinkCategories = [];
+
+function openFriendLinkModal() {
+    // 预加载分类列表
+    var catLoad = fetch('/xiaoying_admin/api/pages/categories/')
+        .then(function(r) { return r.json(); })
+        .then(function(resp) { _friendLinkCategories = resp.categories || []; })
+        .catch(function() { _friendLinkCategories = []; });
+
+    catLoad.then(function() {
+        var html = '<div style="padding:15px 20px;">';
+        // 添加表单
+        html += '<div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:#333;"><i class="fas fa-plus-circle" style="color:#FFB800;"></i> 添加友情链接</div>';
+        html += '<div class="layui-form-item"><label class="layui-form-label" style="width:70px;">标题</label><div class="layui-input-block" style="margin-left:100px;"><input type="text" id="flTitle" class="layui-input" placeholder="链接标题"></div></div>';
+        html += '<div class="layui-form-item"><label class="layui-form-label" style="width:70px;">URL</label><div class="layui-input-block" style="margin-left:100px;"><input type="text" id="flUrl" class="layui-input" placeholder="https://example.com"></div></div>';
+        html += '<div class="layui-form-item"><label class="layui-form-label" style="width:70px;">应用范围</label><div class="layui-input-block" style="margin-left:100px;">';
+        html += '<select id="flScope" class="layui-input" style="height:38px;">'
+            + '<option value="all">全部页面</option>'
+            + '<option value="category">指定分类</option>'
+            + '</select>';
+        html += '</div></div>';
+        html += '<div class="layui-form-item" id="flCategoryWrap" style="display:none;"><label class="layui-form-label" style="width:70px;">分类</label><div class="layui-input-block" style="margin-left:100px;">';
+        html += '<select id="flCategory" class="layui-input" style="height:38px;">';
+        if (_friendLinkCategories.length === 0) {
+            html += '<option value="">暂无分类</option>';
+        } else {
+            _friendLinkCategories.forEach(function(c) {
+                html += '<option value="' + c.id + '">' + escHtml(c.name) + '</option>';
+            });
+        }
+        html += '</select>';
+        html += '</div></div>';
+        html += '<div style="text-align:center;margin:5px 0 15px;"><button type="button" class="layui-btn layui-btn-sm" style="background:#FFB800;border-color:#FFB800;" id="flAddBtn"><i class="fas fa-plus"></i> 添加</button></div>';
+        // 已有链接列表
+        html += '<div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:#333;"><i class="fas fa-list" style="color:#FFB800;"></i> 已添加的友情链接</div>';
+        html += '<div id="flListWrap" style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:4px;"><div style="padding:20px;text-align:center;color:#999;">加载中...</div></div>';
+        html += '</div>';
+
+        layer.open({
+            type: 1,
+            title: '<i class="fas fa-link" style="color:#FFB800;"></i> 友情链接管理',
+            area: ['520px', '580px'],
+            shadeClose: true,
+            content: html,
+            success: function(layero) {
+                loadFriendLinks(layero);
+
+                // 应用范围切换：显示/隐藏分类下拉
+                layero.find('#flScope').on('change', function() {
+                    layero.find('#flCategoryWrap').css('display', this.value === 'category' ? '' : 'none');
+                });
+
+                // 添加按钮
+                layero.find('#flAddBtn').on('click', function() {
+                    var title = layero.find('#flTitle').val().trim();
+                    var url = layero.find('#flUrl').val().trim();
+                    var scope = layero.find('#flScope').val();
+                    var categoryId = layero.find('#flCategory').val();
+                    if (!title) { layer.msg('请输入链接标题', {icon:5}); return; }
+                    if (!url) { layer.msg('请输入链接 URL', {icon:5}); return; }
+                    if (scope === 'category' && !categoryId) { layer.msg('请选择应用分类', {icon:5}); return; }
+
+                    var idx = layer.load(1);
+                    fetch('/xiaoying_admin/api/friend-links/create/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: title, url: url, scope: scope, category_id: categoryId }),
+                    }).then(function(r) { return r.json(); }).then(function(resp) {
+                        layer.close(idx);
+                        if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                        layero.find('#flTitle').val('');
+                        layero.find('#flUrl').val('');
+                        layer.msg(resp.message, {icon:1});
+                        loadFriendLinks(layero);
+                    }).catch(function() { layer.close(idx); layer.msg('添加失败', {icon:2}); });
+                });
+            },
+        });
+    });
+}
+
+// 加载友情链接列表
+function loadFriendLinks(layero) {
+    var wrap = layero.find('#flListWrap');
+    wrap.html('<div style="padding:20px;text-align:center;color:#999;">加载中...</div>');
+    fetch('/xiaoying_admin/api/friend-links/')
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            var items = resp.items || [];
+            if (items.length === 0) {
+                wrap.html('<div style="padding:30px;text-align:center;color:#bbb;">暂无友情链接，请在上方添加</div>');
+                return;
+            }
+            var list = '<table class="layui-table" style="margin:0;font-size:13px;">';
+            list += '<colgroup><col style="width:auto;"><col style="width:110px;"><col style="width:70px;"></colgroup>';
+            list += '<thead><tr><th>标题</th><th>应用范围</th><th style="text-align:center;">操作</th></tr></thead><tbody>';
+            items.forEach(function(link) {
+                var scopeText = link.scope === 'category' ? (link.category_name || '指定分类') : '全部页面';
+                list += '<tr>';
+                list += '<td><a href="' + escAttr(link.url) + '" target="_blank" style="color:#1E9FFF;font-weight:bold;">' + escHtml(link.title) + '</a><div style="color:#999;font-size:12px;word-break:break-all;">' + escHtml(link.url) + '</div></td>';
+                list += '<td>' + (link.scope === 'category' ? '<span class="layui-badge layui-bg-orange">' : '<span class="layui-badge layui-bg-green">') + escHtml(scopeText) + '</span></td>';
+                list += '<td style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs fl-del-btn" data-id="' + link.id + '" data-title="' + escAttr(link.title) + '"><i class="fas fa-trash-alt"></i> 删除</button></td>';
+                list += '</tr>';
+            });
+            list += '</tbody></table>';
+            wrap.html(list);
+
+            // 绑定删除事件（layero 为 jQuery 对象，可用 .on 绑定；此处避免使用全局 $）
+            wrap.find('.fl-del-btn').on('click', function() {
+                var id = this.getAttribute('data-id');
+                var title = this.getAttribute('data-title');
+                layer.confirm('确定删除友情链接「' + title + '」吗？删除后将自动从所有已注入页面中移除。', { icon: 3, title: '删除确认', btn: ['删除', '取消'] }, function(index) {
+                    layer.close(index);
+                    var idx = layer.load(1);
+                    fetch('/xiaoying_admin/api/friend-links/delete/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: id }),
+                    }).then(function(r) { return r.json(); }).then(function(resp) {
+                        layer.close(idx);
+                        if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                        layer.msg(resp.message, {icon:1});
+                        loadFriendLinks(layero);
+                    }).catch(function() { layer.close(idx); layer.msg('删除失败', {icon:2}); });
+                });
+            });
+        })
+        .catch(function() {
+            wrap.html('<div style="padding:20px;text-align:center;color:#FF5722;">加载失败</div>');
+        });
+}
+</script>

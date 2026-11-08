@@ -1,0 +1,224 @@
+<script>
+// ============================================================
+// 页面列表 — 树形视图渲染函数
+// ============================================================
+// 依赖全局变量: treeData, currentFilter, escHtml, escAttr
+
+function renderTree() {
+    var container = document.getElementById('treeContainer');
+    if (!treeData) {
+        container.innerHTML = '<div class="loading-mask">加载中...</div>';
+        return;
+    }
+    var html = '';
+
+    if (currentFilter === 'all') {
+        // 显示所有分类
+        var hasAny = false;
+        treeData.categories.forEach(function(cat) {
+            var catHtml = renderCategoryTree(cat);
+            if (catHtml) { hasAny = true; html += catHtml; }
+        });
+        // 未分类
+        if (treeData.uncategorized && treeData.uncategorized.page_count > 0) {
+            hasAny = true;
+            html += renderSpecialNode('未分类', 'inbox', '#999', treeData.uncategorized);
+            html += '<div class="batch-cat-bar"><button class="batch-cat-btn" onclick="openBatchCategorizeModal()"><i class="fas fa-tags"></i> 批量分类</button></div>';
+        }
+        // 未绑定域名
+        if (treeData.unbound && treeData.unbound.page_count > 0) {
+            hasAny = true;
+            html += renderUnboundNode(treeData.unbound);
+        }
+        if (!hasAny) {
+            html = '<div class="tree-empty"><i class="fas fa-folder-open" style="font-size:36px;display:block;margin-bottom:10px;color:#ddd;"></i>暂无页面数据</div>';
+        }
+    } else if (currentFilter.indexOf('cat_') === 0) {
+        var catId = parseInt(currentFilter.replace('cat_', ''));
+        var cat = null;
+        treeData.categories.forEach(function(c) { if (c.id === catId) cat = c; });
+        if (cat) {
+            html = renderCategoryTree(cat, true);
+        } else {
+            html = '<div class="tree-empty">分类已不存在</div>';
+        }
+    } else if (currentFilter === 'uncategorized') {
+        if (treeData.uncategorized && treeData.uncategorized.page_count > 0) {
+            html = renderSpecialNode('未分类', 'inbox', '#999', treeData.uncategorized, true);
+            html += '<div class="batch-cat-bar"><button class="batch-cat-btn" onclick="openBatchCategorizeModal()"><i class="fas fa-tags"></i> 批量分类</button></div>';
+        } else {
+            html = '<div class="tree-empty">所有页面都已有分类</div>';
+        }
+    } else if (currentFilter === 'unbound') {
+        if (treeData.unbound && treeData.unbound.page_count > 0) {
+            html = renderUnboundNode(treeData.unbound, true);
+        } else {
+            html = '<div class="tree-empty">所有页面都已绑定域名</div>';
+        }
+    }
+
+    container.innerHTML = html;
+    bindTreeEvents();
+}
+
+function renderCategoryTree(cat, expanded) {
+    if (!cat.root_domains || cat.root_domains.length === 0) return '';
+    var open = expanded ? 'expanded' : '';
+    var arrowOpen = expanded ? 'expanded' : '';
+    var html = '';
+    html += '<div class="tree-node tree-node-category">';
+    html += '<div class="tree-node-row" data-target="cat_' + cat.id + '">';
+    html += '<span class="tree-arrow ' + arrowOpen + '"><i class="fas fa-caret-right"></i></span>';
+    html += '<span class="tree-icon"><i class="fas fa-folder-open" style="color:#5FB878;"></i></span>';
+    html += '<span class="tree-label">' + escHtml(cat.name) + '</span>';
+    html += '<span class="tree-count">' + (cat.page_count || 0) + ' 个页面</span>';
+    html += '</div>';
+    html += '<div class="tree-children ' + open + '">';
+    cat.root_domains.forEach(function(root) {
+        html += renderRootDomainNode(root);
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function renderSpecialNode(label, icon, color, data, expanded) {
+    if (!data.root_domains || data.root_domains.length === 0) {
+        return '';
+    }
+    var open = expanded ? 'expanded' : '';
+    var arrowOpen = expanded ? 'expanded' : '';
+    var html = '';
+    html += '<div class="tree-node tree-node-category">';
+    html += '<div class="tree-node-row" data-target="' + (label === '未分类' ? 'uncategorized' : 'unbound') + '">';
+    html += '<span class="tree-arrow ' + arrowOpen + '"><i class="fas fa-caret-right"></i></span>';
+    html += '<span class="tree-icon"><i class="fas fa-' + icon + '" style="color:' + color + ';"></i></span>';
+    html += '<span class="tree-label" style="color:' + color + ';">' + label + '</span>';
+    html += '<span class="tree-count">' + (data.page_count || 0) + ' 个页面</span>';
+    html += '</div>';
+    html += '<div class="tree-children ' + open + '">';
+    data.root_domains.forEach(function(root) {
+        html += renderRootDomainNode(root);
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function renderUnboundNode(data, expanded) {
+    if (!data.pages || data.pages.length === 0) return '';
+    var open = expanded ? 'expanded' : '';
+    var arrowOpen = expanded ? 'expanded' : '';
+    var html = '';
+    html += '<div class="tree-node tree-node-category">';
+    html += '<div class="tree-node-row" data-target="unbound">';
+    html += '<span class="tree-arrow ' + arrowOpen + '"><i class="fas fa-caret-right"></i></span>';
+    html += '<span class="tree-icon"><i class="fas fa-chain-broken" style="color:#bbb;"></i></span>';
+    html += '<span class="tree-label" style="color:#999;">未绑定域名</span>';
+    html += '<span class="tree-count">' + (data.page_count || 0) + ' 个页面</span>';
+    html += '</div>';
+    html += '<div class="tree-children ' + open + '">';
+    data.pages.forEach(function(page) {
+        html += renderPageNode(page);
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function renderRootDomainNode(root) {
+    var html = '';
+    html += '<div class="tree-node tree-node-root">';
+    html += '<div class="tree-node-row" data-target="root">';
+    html += '<span class="tree-arrow"><i class="fas fa-caret-right"></i></span>';
+    html += '<span class="tree-icon"><i class="fas fa-globe"></i></span>';
+    html += '<span class="tree-label">' + escHtml(root.root) + '</span>';
+    html += '<span class="tree-count">' + (root.page_count || 0) + ' 个页面</span>';
+    html += '<button class="tree-domain-btn" onclick="event.stopPropagation();openDomainViewModalByRootName(\'' + escAttr(root.root) + '\')" title="查看全部子域名"><i class="fas fa-list"></i></button>';
+    html += '<button class="tree-domain-btn tree-del-root-btn" onclick="event.stopPropagation();deleteRootDomain(\'' + escAttr(root.root) + '\', ' + (root.page_count || 0) + ')" title="删除全部"><i class="fas fa-trash-alt"></i></button>';
+    html += '</div>';
+    html += '<div class="tree-children">';
+    root.domains.forEach(function(dom) {
+        html += renderDomainNode(dom);
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function renderDomainNode(dom) {
+    // 判断该域名下所有页面的排除互链状态
+    var allExcluded = true;
+    if (dom.pages && dom.pages.length) {
+        dom.pages.forEach(function(p) {
+            if (!p.crosslink_excluded) allExcluded = false;
+        });
+    } else {
+        allExcluded = false;
+    }
+    var onIcon = allExcluded ? 'fa-toggle-on' : 'fa-toggle-off';
+    var onColor = allExcluded ? '#5FB878' : '#ccc';
+
+    var html = '';
+    html += '<div class="tree-node tree-node-domain">';
+    html += '<div class="tree-node-row" data-target="domain">';
+    html += '<span class="tree-arrow"><i class="fas fa-caret-right"></i></span>';
+    html += '<span class="tree-icon"><i class="fas fa-link"></i></span>';
+    html += '<span class="tree-label">' + escHtml(dom.domain) + '</span>';
+    html += '<span class="tree-count">' + (dom.page_count || 0) + ' 个页面</span>';
+
+    // 排除互链开关
+    html += '<i class="fas ' + onIcon + ' domain-crosslink-toggle" data-domain="' + escAttr(dom.domain) + '" style="color:' + onColor + ';cursor:pointer;font-size:16px;margin-right:4px;transition:color .2s;" title="' + (allExcluded ? '已排除互链' : '纳入互链') + '"></i>';
+
+    // SEO 操作按钮
+    html += '<span class="seo-domain-actions">';
+    html += '<button class="sa-btn" onclick="event.stopPropagation();openTreeDomainSeo(\'' + escAttr(dom.domain) + '\')" title="收录管理"><i class="fas fa-search"></i></button>';
+    html += '<button class="sa-btn seo-rank-btn" onclick="event.stopPropagation();openTreeDomainSeo(\'' + escAttr(dom.domain) + '\')" title="排名管理"><i class="fas fa-trophy"></i></button>';
+    html += '</span>';
+
+    html += '</div>';
+    html += '<div class="tree-children">';
+    dom.pages.forEach(function(page) {
+        html += renderPageNode(page);
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function renderPageNode(page) {
+    var html = '';
+    html += '<div class="tree-node tree-node-page" data-page-id="' + page.id + '">';
+    html += '<div class="tree-node-row">';
+    html += '<span class="tree-arrow no-children"><i class="fas fa-caret-right"></i></span>';
+    html += '<span class="tree-icon"><i class="fas fa-file-alt"></i></span>';
+    html += '<span class="tree-label">' + escHtml(page.name) + '</span>';
+
+    // SEO 状态标记（取第一个域名的 SEO 数据做展示）
+    var domains = page.domains && page.domains.length ? page.domains : (page.domain ? [page.domain] : []);
+    if (domains.length) {
+        html += '<span style="display:inline-flex;align-items:center;gap:2px;margin-right:4px;">';
+        domains.forEach(function(d) {
+            var seoData = getPageDomainSeo(page, d);
+            if (seoData) {
+                var indexed = seoData.indexed_engines || [];
+                if (indexed.length) {
+                    html += indexed.map(function(eng) {
+                        return '<span class="seo-engine-badge lit" style="font-size:10px;padding:0 4px;" title="' + escHtml(eng) + '收录">' + escHtml(eng.substring(0,2)) + '</span>';
+                    }).join('');
+                }
+                if (seoData.is_rank_first && (seoData.rank_first_engines||[]).length) {
+                    html += '<span class="seo-rank-icon lit" style="font-size:12px;" title="排名第一"><i class="fas fa-trophy"></i></span>';
+                }
+            }
+        });
+        html += '</span>';
+    }
+
+    html += '<span class="page-actions">';
+    html += '<button class="pa-btn btn-edit-page" data-id="' + page.id + '" title="编辑"><i class="fas fa-edit"></i></button>';
+    html += '<button class="pa-btn btn-seo-page" data-id="' + page.id + '" title="SEO优化"><i class="fas fa-search"></i></button>';
+    html += '<button class="pa-btn btn-cat-page" data-id="' + page.id + '" title="分类"><i class="fas fa-tags"></i></button>';
+    html += '<button class="pa-btn" data-action="domain" data-id="' + page.id + '" data-domains=\'' + escAttr(JSON.stringify(page.domains || [])) + '\' title="域名"><i class="fas fa-globe"></i></button>';
+    html += '<button class="pa-btn" data-action="open" data-domains=\'' + escAttr(JSON.stringify(page.domains || [])) + '\' title="打开"><i class="fas fa-external-link-alt"></i></button>';
+    html += '<button class="pa-btn danger" data-action="delete" data-id="' + page.id + '" title="删除"><i class="fas fa-trash"></i></button>';
+    html += '</span>';
+    html += '</div></div>';
+    return html;
+}
+</script>

@@ -1,0 +1,361 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}用户管理 — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+    .user-mgmt { padding: 0 4px; }
+    .user-mgmt .header-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .user-mgmt .header-actions .left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .user-mgmt .header-actions .left a.btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 7px 18px;
+        background: #5FB878;
+        color: #fff;
+        border-radius: 4px;
+        font-size: 13px;
+        text-decoration: none;
+        transition: background .2s;
+    }
+    .user-mgmt .header-actions .left a.btn-primary:hover { background: #4aa86a; }
+    .user-mgmt .header-actions .right form {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .user-mgmt .header-actions .right input[type="text"] {
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+        transition: border-color .2s;
+    }
+    .user-mgmt .header-actions .right input[type="text"]:focus { border-color: #5FB878; }
+    .user-mgmt .header-actions .right button {
+        height: 32px;
+        padding: 0 14px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        background: #fff;
+        color: #666;
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .user-mgmt .header-actions .right button:hover { border-color: #5FB878; color: #5FB878; }
+
+    .user-mgmt table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .user-mgmt table th {
+        background: #f2f2f2;
+        text-align: left;
+        padding: 10px 12px;
+        font-weight: 600;
+        color: #393D49;
+        border-bottom: 1px solid #e6e6e6;
+    }
+    .user-mgmt table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f0f0f0;
+        color: #555;
+        vertical-align: middle;
+    }
+    .user-mgmt table tr:hover td { background: #f8faf8; }
+
+    .user-mgmt .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    .badge-active { background: #e8f8ee; color: #2d6a4f; }
+    .badge-inactive { background: #fce8e8; color: #c0392b; }
+    .badge-super { background: #fff3e0; color: #e67e22; }
+    .badge-staff { background: #e3f2fd; color: #1976d2; }
+    .badge-user { background: #f5f5f5; color: #888; }
+
+    .user-mgmt .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 3px 10px;
+        border: 1px solid #d2d2d2;
+        border-radius: 3px;
+        background: #fff;
+        color: #666;
+        font-size: 12px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all .2s;
+    }
+    .user-mgmt .action-btn:hover { border-color: #5FB878; color: #5FB878; }
+    .user-mgmt .action-btn.danger:hover { border-color: #e54d4d; color: #e54d4d; }
+    .user-mgmt .action-btn + .action-btn { margin-left: 4px; }
+
+    .user-mgmt .empty-state {
+        text-align: center;
+        padding: 40px 0;
+        color: #bbb;
+        font-size: 14px;
+    }
+    .user-mgmt .empty-state i { font-size: 40px; margin-bottom: 10px; display: block; color: #ddd; }
+
+    /* ===== 操作下拉菜单 ===== */
+    .action-dropdown { position:relative; display:inline-block; }
+    .action-dropdown .dropdown-menu {
+        display:none; position:absolute; right:0; top:100%; z-index:999;
+        min-width:145px; background:#fff; border:1px solid #e8e8e8;
+        border-radius:8px; box-shadow:0 8px 28px rgba(0,0,0,.14); padding:5px 0; margin-top:4px;
+    }
+    .action-dropdown.open .dropdown-menu { display:block; animation:dropIn .15s ease; }
+    @keyframes dropIn { from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
+    .action-dropdown .dropdown-item {
+        display:flex; align-items:center; gap:9px; padding:8px 16px;
+        color:#393D49; font-size:13px; text-decoration:none;
+        transition:background .1s; cursor:pointer;
+    }
+    .action-dropdown .dropdown-item:hover { background:#f0f7f0; color:#5FB878; }
+    .action-dropdown .dropdown-item i { width:16px; text-align:center; color:#999; font-size:13px; }
+    .action-dropdown .dropdown-item:hover i { color:#5FB878; }
+    .action-dropdown .dropdown-item.dropdown-danger { color:#d32f2f; }
+    .action-dropdown .dropdown-item.dropdown-danger:hover { background:#fff5f5; color:#d32f2f; }
+    .action-dropdown .dropdown-item.dropdown-danger:hover i { color:#d32f2f; }
+    .dropdown-trigger {
+        border-radius:6px !important; transition:all .15s !important;
+    }
+    .dropdown-trigger:hover {
+        border-color:#5FB878 !important; background:#f8fdf9 !important;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="user-mgmt">
+    <h2 style="font-size:18px;font-weight:500;margin-bottom:16px;">
+        <i class="fas fa-users" style="color:#5FB878;"></i> 用户管理
+    </h2>
+
+    {% if error %}
+    <div style="background:#fff5f5;border:1px solid #ffe0e0;border-radius:6px;padding:10px 14px;margin-bottom:14px;color:#e54d4d;font-size:13px;">
+        <i class="fas fa-exclamation-circle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if not error %}
+    <div class="header-actions">
+        <div class="left">
+            <a href="{% url 'user_create' %}" class="btn-primary">
+                <i class="fas fa-plus"></i> 创建用户
+            </a>
+            <span style="color:#999;font-size:13px;">
+                共 <strong style="color:#5FB878;">{{ users|length }}</strong> 个用户
+            </span>
+        </div>
+        <div class="right">
+            <form method="get">
+                <input type="text" name="q" placeholder="搜索用户名/邮箱/手机号"
+                       value="{{ search_query|default:'' }}">
+                <button type="submit"><i class="fas fa-search"></i> 搜索</button>
+                {% if search_query %}
+                <a href="{% url 'user_list' %}" style="color:#999;font-size:12px;text-decoration:none;">
+                    <i class="fas fa-times"></i> 清除
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:50px;">ID</th>
+                <th>用户名</th>
+                <th>邮箱</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>注册时间</th>
+                <th style="width:70px;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.pk }}</td>
+                <td>
+                    <strong>{{ u.username }}</strong>
+                    {% if u == request.user %}
+                    <span style="color:#5FB878;font-size:11px;">（本人）</span>
+                    {% endif %}
+                </td>
+                <td>{{ u.email|default:'—' }}</td>
+                <td>
+                    {% if u.is_superuser %}
+                    <span class="badge badge-super"><i class="fas fa-crown"></i> 超级管理员</span>
+                    {% elif u.is_staff %}
+                    <span class="badge badge-staff"><i class="fas fa-shield-alt"></i> 管理员</span>
+                    {% else %}
+                    <span class="badge badge-user"><i class="fas fa-user"></i> 普通用户</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if u.is_active %}
+                    <span class="badge badge-active"><i class="fas fa-check"></i> 正常</span>
+                    {% else %}
+                    <span class="badge badge-inactive"><i class="fas fa-ban"></i> 已禁用</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:12px;color:#999;">{{ u.date_joined|date:'Y-m-d H:i' }}</td>
+                <td style="width:70px;">
+                    <div class="action-dropdown">
+                        <button class="layui-btn layui-btn-sm layui-btn-primary dropdown-trigger" style="font-size:14px;padding:0 10px;line-height:30px;height:30px;"><i class="fas fa-caret-down"></i></button>
+                        <div class="dropdown-menu">
+                            {% if request.user.is_superuser or u == request.user %}
+                            <a href="{% url 'user_edit' pk=u.pk %}" class="dropdown-item"><i class="fas fa-pen"></i> 编辑</a>
+                            {% endif %}
+                            {% if request.user.is_superuser %}
+                            <a href="javascript:;" class="dropdown-item btn-toggle-user"
+                               data-pk="{{ u.pk }}" data-username="{{ u.username }}"
+                               data-active="{{ u.is_active|lower }}">
+                                <i class="fas {% if u.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
+                                {% if u.is_active %}禁用{% else %}启用{% endif %}
+                            </a>
+                            {% endif %}
+                            {% if u != request.user %}
+                            <a href="javascript:;" class="dropdown-item dropdown-danger btn-delete-user"
+                               data-pk="{{ u.pk }}" data-username="{{ u.username }}">
+                                <i class="fas fa-trash-alt"></i> 删除
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">
+                    <div class="empty-state">
+                        <i class="fas fa-users-slash"></i>
+                        {% if search_query %}未找到匹配的用户{% else %}暂无用户数据{% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+// ===== 下拉菜单开关 & 全局关闭 =====
+document.addEventListener('click', function(e) {
+  var trigger = e.target.closest('.dropdown-trigger');
+  if (trigger) {
+    e.stopPropagation();
+    var dd = trigger.closest('.action-dropdown');
+    document.querySelectorAll('.action-dropdown.open').forEach(function(d) {
+      if (d !== dd) d.classList.remove('open');
+    });
+    dd.classList.toggle('open');
+    return;
+  }
+
+  // 点击菜单项 → 关闭所属下拉
+  var item = e.target.closest('.dropdown-item');
+  if (item) {
+    var dd = item.closest('.action-dropdown');
+    if (dd) dd.classList.remove('open');
+
+    // 切换启用/禁用
+    if (item.classList.contains('btn-toggle-user')) {
+      e.stopPropagation();
+      var pk = item.dataset.pk;
+      var username = item.dataset.username;
+      var isActive = item.dataset.active === 'true';
+      var action = isActive ? '禁用' : '启用';
+
+      layui.use(['layer'], function() {
+        var layer = layui.layer;
+        layer.confirm('确定要' + action + '用户「' + username + '」吗？', {
+          icon: 3, title: '提示', btn: ['确定', '取消']
+        }, function(index) {
+          fetch('/xiaoying_admin/users/' + pk + '/toggle_active/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+          }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.ok) {
+              layer.msg(data.is_active ? '已启用' : '已禁用', {icon: 1});
+              setTimeout(function() { location.reload(); }, 600);
+            } else {
+              layer.msg(data.error || '操作失败', {icon: 2});
+            }
+          }).catch(function() {
+            layer.msg('网络错误', {icon: 2});
+          });
+          layer.close(index);
+        });
+      });
+      return;
+    }
+
+    // 删除用户
+    if (item.classList.contains('btn-delete-user')) {
+      e.stopPropagation();
+      var pk = item.dataset.pk;
+      var username = item.dataset.username;
+
+      layui.use(['layer'], function() {
+        var layer = layui.layer;
+        layer.confirm('确定要删除用户「' + username + '」吗？<br><span style="color:#e54d4d;font-size:12px;">此操作不可恢复！</span>', {
+          icon: 2, title: '警告', btn: ['确定删除', '取消']
+        }, function(index) {
+          fetch('/xiaoying_admin/users/' + pk + '/delete/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+          }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.ok) {
+              layer.msg('已删除「' + data.username + '」', {icon: 1});
+              setTimeout(function() { location.reload(); }, 600);
+            } else {
+              layer.msg(data.error || '删除失败', {icon: 2});
+            }
+          }).catch(function() {
+            layer.msg('网络错误', {icon: 2});
+          });
+          layer.close(index);
+        });
+      });
+      return;
+    }
+
+    return;
+  }
+
+  // 点击页面其他区域 → 关闭所有下拉
+  document.querySelectorAll('.action-dropdown.open').forEach(function(d) {
+    d.classList.remove('open');
+  });
+});
+</script>
+{% endblock %}

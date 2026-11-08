@@ -1,0 +1,187 @@
+/* ===== 顶部标签页导航栏 =====
+ * 细长紧凑风格，参考 VS Code/Chrome 标签页
+ * 支持右键菜单：关闭当前/其它/右侧/左侧/所有
+ */
+
+/* 标签栏容器 */
+.nav-tabs-bar {
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    height: 32px;
+    /* sticky：紧贴在全局通用头部组件底部。
+       全局头部 sticky top:-15px + height≈39px，
+       所以 top:24px 使其紧贴头部底部（24 = 39 - 15）。
+       让标签栏在滚动时始终固定在头部下方 */
+    position: sticky;
+    top: 24px;
+    z-index: 99;
+    margin: 0 -15px 8px -15px;
+}
+
+/* 标签滚动容器 */
+.nav-tabs-scroller {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #d4d4d4 transparent;
+    padding: 0 4px;
+}
+
+.nav-tabs-scroller::-webkit-scrollbar {
+    height: 3px;
+}
+.nav-tabs-scroller::-webkit-scrollbar-track {
+    background: transparent;
+}
+.nav-tabs-scroller::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+    border-radius: 2px;
+}
+.nav-tabs-scroller::-webkit-scrollbar-thumb:hover {
+    background: #b0b0b0;
+}
+
+/* 单个标签项 */
+.nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 8px;
+    margin: 0 1px;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1;
+    color: #666;
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+    max-width: 180px;
+    position: relative;
+}
+
+.nav-tab:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+/* 当前激活标签：底部蓝线 + 浅蓝背景 */
+.nav-tab.active {
+    background: #e8f4ff;
+    color: #1890ff;
+    border-color: #bae0ff;
+}
+
+.nav-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: #1890ff;
+    border-radius: 2px;
+}
+
+/* 标签图标 */
+.nav-tab-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.nav-tab.active .nav-tab-icon {
+    opacity: 1;
+}
+
+/* 标签标题 */
+.nav-tab-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+}
+
+/* 关闭按钮 */
+.nav-tab-close {
+    font-size: 10px;
+    margin-left: 2px;
+    padding: 2px;
+    border-radius: 50%;
+    opacity: 0.35;
+    transition: all 0.12s;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-tab:hover .nav-tab-close {
+    opacity: 0.7;
+}
+
+.nav-tab-close:hover {
+    opacity: 1 !important;
+    background: #ff4d4f;
+    color: #fff;
+}
+
+/* 空状态 */
+.nav-tabs-empty {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    color: #bbb;
+    font-size: 12px;
+}
+
+/* ===== 右键菜单 ===== */
+.nav-tab-context-menu {
+    position: fixed;
+    z-index: 10000;
+    min-width: 140px;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    padding: 4px 0;
+    font-size: 13px;
+    user-select: none;
+}
+
+.context-menu-item {
+    padding: 6px 16px;
+    cursor: pointer;
+    color: #333;
+    transition: background 0.1s;
+    white-space: nowrap;
+}
+
+.context-menu-item:hover {
+    background: #e8f4ff;
+    color: #1890ff;
+}
+
+.context-menu-item.disabled {
+    color: #bbb;
+    cursor: not-allowed;
+}
+
+.context-menu-item.disabled:hover {
+    background: transparent;
+    color: #bbb;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin: 4px 0;
+}

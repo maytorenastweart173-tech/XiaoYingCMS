@@ -1,0 +1,195 @@
+<script>
+// ============================================================
+// 页面列表 — 共享状态 & 工具函数
+// ============================================================
+
+// ---- 工具函数 ----
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+// ---- 共享状态 ----
+var categories = [];           // 所有分类列表
+var treeData = null;            // 缓存的树形数据
+var currentFilter = 'all';      // 当前侧边栏选中筛选条件
+
+// ---- 分类 API 加载 ----
+function loadCategories() {
+    return fetch('/xiaoying_admin/api/pages/categories/')
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            categories = resp.categories || [];
+            renderSidebar();
+            return categories;
+        });
+}
+
+// ---- 树形数据加载 ----
+function loadTree() {
+    var container = document.getElementById('treeContainer');
+    container.innerHTML = '<div class="loading-mask">加载中...</div>';
+    return fetch('/xiaoying_admin/api/pages/tree/')
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            treeData = resp;
+            updateSidebarCounts();
+            renderTree();
+        })
+        .catch(function() {
+            container.innerHTML = '<div class="loading-mask" style="color:#FF5722;">加载失败</div>';
+        });
+}
+
+// ---- 刷新页面数据（树 + 分类数量） ----
+function refreshPageData() {
+    loadCategories().then(function() { loadTree(); });
+}
+
+/**
+ * 树形视图：点击域名节点的 SEO 按钮，找到该域名下第一个页面并打开 SEO 弹窗。
+ * @param {string} domain - 域名
+ */
+function openTreeDomainSeo(domain) {
+    if (!treeData) { layer.msg('数据未加载', {icon:5}); return; }
+
+    // 在所有分类中查找
+    var found = false;
+    function searchPages(nodes) {
+        if (!nodes) return;
+        nodes.forEach(function(n) {
+            if (n.pages) {
+                n.pages.forEach(function(page) {
+                    var domains = page.domains && page.domains.length ? page.domains : (page.domain ? [page.domain] : []);
+                    if (domains.indexOf(domain) !== -1 && !found) {
+                        found = true;
+                        var seoData = getPageDomainSeo(page, domain);
+                        openDomainSeoModal(page.id, domain, seoData);
+                    }
+                });
+            }
+            if (n.root_domains) {
+                n.root_domains.forEach(function(root) {
+                    if (root.domains) searchPages(root.domains);
+                });
+            }
+        });
+    }
+
+    // 搜索所有分类
+    if (treeData.categories) searchPages(treeData.categories);
+    // 搜索未分类
+    if (treeData.uncategorized && treeData.uncategorized.root_domains) {
+        searchPages(treeData.uncategorized.root_domains);
+    }
+    // 搜索未绑定域名
+    if (treeData.unbound && treeData.unbound.pages) {
+        treeData.unbound.pages.forEach(function(page) {
+            var domains = page.domains && page.domains.length ? page.domains : (page.domain ? [page.domain] : []);
+            if (domains.indexOf(domain) !== -1 && !found) {
+                found = true;
+                var seoData = getPageDomainSeo(page, domain);
+                openDomainSeoModal(page.id, domain, seoData);
+            }
+        });
+    }
+
+    if (!found) {
+        layer.msg('未找到该域名下的页面', {icon:5});
+    }
+}
+
+// ---- SEO 状态工具函数 ----
+/**
+ * 根据页面 ID 和域名查找 SEO 数据。
+ * @param {object} pageItem - 页面数据项（含 domain_seo 字典）
+ * @param {string} domain   - 域名
+ * @returns {object|null}
+ */
+function getPageDomainSeo(pageItem, domain) {
+    if (!pageItem || !pageItem.domain_seo) return null;
+    return pageItem.domain_seo[domain] || null;
+}
+
+// ---- 排除互链（域名级别） ----
+/**
+ * 切换域名下所有页面的排除互链状态。
+ * 在 treeData 中查找所有匹配该域名的页面，批量调用 API 切换 crosslink_excluded。
+ * @param {string} domain - 域名
+ */
+function toggleDomainCrosslink(domain) {
+    if (!treeData) { layer.msg('数据未加载', {icon:5}); return; }
+
+    // 收集该域名下所有页面 ID
+    var pageIds = [];
+    var currentAllExcluded = true; // 假设全部已排除
+
+    function collectPages(nodes) {
+        if (!nodes) return;
+        nodes.forEach(function(n) {
+            if (n.pages) {
+                n.pages.forEach(function(page) {
+                    var domains = page.domains && page.domains.length ? page.domains : (page.domain ? [page.domain] : []);
+                    if (domains.indexOf(domain) !== -1) {
+                        pageIds.push({ id: page.id, excluded: page.crosslink_excluded });
+                        if (!page.crosslink_excluded) {
+                            currentAllExcluded = false;
+                        }
+                    }
+                });
+            }
+            if (n.root_domains) {
+                n.root_domains.forEach(function(root) {
+                    if (root.domains) collectPages(root.domains);
+                });
+            }
+        });
+    }
+
+    // 收集所有分类下的页面
+    if (treeData.categories) collectPages(treeData.categories);
+    // 收集未分类下的页面
+    if (treeData.uncategorized && treeData.uncategorized.root_domains) {
+        collectPages(treeData.uncategorized.root_domains);
+    }
+
+    if (pageIds.length === 0) {
+        layer.msg('该域名下没有页面', {icon:5});
+        return;
+    }
+
+    var newExcluded = !currentAllExcluded; // 全部已排除→纳入；否则→排除
+    var count = pageIds.length;
+    var done = 0;
+    var failed = false;
+
+    var loadIdx = layer.load(1);
+
+    pageIds.forEach(function(item) {
+        fetch('/xiaoying_admin/api/crosslinks/exclude-toggle/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: item.id, excluded: newExcluded }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.error) {
+                failed = true;
+            }
+        })
+        .catch(function() {
+            failed = true;
+        })
+        .then(function() {
+            done++;
+            if (done >= count) {
+                layer.close(loadIdx);
+                if (failed) {
+                    layer.msg('部分操作失败，已刷新数据', {icon:2, time:1500});
+                } else {
+                    layer.msg(newExcluded ? '已排除互链（' + count + '个页面）' : '已纳入互链（' + count + '个页面）', {icon:1, time:1500});
+                }
+                refreshPageData();
+            }
+        });
+    });
+}
+</script>

@@ -1,0 +1,295 @@
+<script>
+// ============================================================
+// 页面列表 — 弹窗页面（创建/编辑/SEO/分类设置）
+// 依赖：全局变量 categories（分类列表）、treeData
+// 依赖：全局函数 escHtml(), escAttr()
+// 依赖：全局函数 buildCategorySelector(), initCategorySelector(layero, initialSelected)
+// 依赖：全局函数 loadTree(), loadTableView(), currentPageTV
+// ============================================================
+
+// ============================================================
+// 页面分类设置弹窗
+// ============================================================
+
+function openPageCategoryEditor(pageId) {
+    // 先获取页面当前分类
+    fetch('/xiaoying_admin/api/pages/saved/' + pageId + '/')
+        .then(function(r) { return r.json(); })
+        .then(function(page) {
+            var currentCatIds = page.category_ids || [];
+
+            var catSelectorHtml = buildCategorySelector();
+            var html = '<div style="padding:15px 20px;">';
+            html += '<div style="font-size:13px;color:#666;margin-bottom:10px;">选择该页面的所属分类（可多选 / 搜索查找）：</div>';
+            html += catSelectorHtml;
+            html += '<div style="margin-top:15px;text-align:center;"><button type="button" class="layui-btn layui-btn-sm" id="pageCatSaveBtn"><i class="fas fa-save"></i> 保存</button></div>';
+            html += '</div>';
+
+            layer.open({
+                type: 1,
+                title: '<i class="fas fa-tags" style="color:#5FB878;"></i> 设置页面分类',
+                area: ['400px', '360px'],
+                shadeClose: true,
+                content: html,
+                success: function(layero) {
+                    // 用预选分类初始化选择器
+                    initCategorySelector(layero, currentCatIds);
+
+                    layero.find('#pageCatSaveBtn').on('click', function() {
+                        var wrap = layero.find('#catSelectorWrap')[0];
+                        var ids = [];
+                        if (wrap) {
+                            var raw = wrap.getAttribute('data-selected');
+                            if (raw) {
+                                ids = raw.split(',').map(function(s) { return parseInt(s, 10); }).filter(function(n) { return !isNaN(n); });
+                            }
+                        }
+                        var idx = layer.load(1);
+                        fetch('/xiaoying_admin/api/pages/saved/set-categories/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: pageId, category_ids: ids }),
+                        }).then(function(r) { return r.json(); }).then(function(resp) {
+                            layer.close(idx);
+                            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                            layer.closeAll();
+                            layer.msg('分类已更新', {icon:1});
+                            loadTree();
+                        }).catch(function() { layer.close(idx); layer.msg('操作失败', {icon:2}); });
+                    });
+                },
+            });
+        });
+}
+
+// ============================================================
+// 新增页面弹窗
+// ============================================================
+
+function openCreatePage() {
+    // 构建分类选择组件的 HTML
+    var catSelectorHtml = buildCategorySelector();
+
+    var html = '<div class="modal-scroll-wrap"><form class="layui-form" style="padding:15px;">';
+    html += '<div class="layui-form-item"><label class="layui-form-label">页面名称 <span style="color:#e54d4d;">*</span></label><div class="layui-input-block"><input type="text" id="createName" class="layui-input" placeholder="输入页面名称"></div></div>';
+    html += '<div class="layui-form-item"><label class="layui-form-label">需求描述</label><div class="layui-input-block"><textarea id="createInput" class="layui-textarea" rows="2" placeholder="可选"></textarea></div></div>';
+    html += '<div class="layui-form-item"><label class="layui-form-label">所属分类</label><div class="layui-input-block">' + catSelectorHtml + '</div></div>';
+    html += '<div class="layui-form-item"><label class="layui-form-label">HTML 代码 <span style="color:#e54d4d;">*</span></label><div class="layui-input-block"><textarea id="createHtml" class="layui-textarea code-textarea" placeholder="粘贴完整的 HTML 代码"></textarea></div></div>';
+    html += '<div class="layui-form-item"><label class="layui-form-label">绑定域名</label><div class="layui-input-block"><input type="text" id="createDomains" class="layui-input" placeholder="可选，多个域名用逗号分隔"></div></div>';
+    html += '<div class="layui-form-item" style="margin-top:15px;text-align:center;"><button type="button" class="layui-btn" id="createSaveBtn"><i class="fas fa-save"></i> 创建页面</button></div>';
+    html += '</form></div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-plus-circle" style="color:#5FB878;"></i> 新增页面',
+        area: ['700px', 'auto'],
+        shadeClose: true,
+        content: html,
+        success: function(layero) {
+            // 初始化分类选择器
+            initCategorySelector(layero);
+
+            layero.find('#createSaveBtn').on('click', function() {
+                var name = layero.find('#createName').val().trim();
+                var htmlContent = layero.find('#createHtml').val().trim();
+                var inputContent = layero.find('#createInput').val().trim();
+                var domainsStr = layero.find('#createDomains').val().trim();
+
+                if (!name) { layer.msg('请输入页面名称', {icon:5}); return; }
+                if (!htmlContent) { layer.msg('请输入 HTML 内容', {icon:5}); return; }
+
+                var domains = [];
+                if (domainsStr) {
+                    domains = domainsStr.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(function(s) { return s.length > 0; });
+                }
+
+                // 从 data 属性读取已选分类 ID
+                var catWrap = layero.find('#catSelectorWrap')[0];
+                var catIds = [];
+                if (catWrap) {
+                    var raw = catWrap.getAttribute('data-selected');
+                    if (raw) {
+                        catIds = raw.split(',').map(function(s) { return parseInt(s, 10); }).filter(function(n) { return !isNaN(n); });
+                    }
+                }
+
+                var idx = layer.load(1);
+                fetch('/xiaoying_admin/api/pages/saved/create/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        html_content: htmlContent,
+                        input_content: inputContent,
+                        domains: domains,
+                        category_ids: catIds,
+                    }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    layer.close(idx);
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.closeAll();
+                    layer.msg('创建成功', {icon:1});
+                    loadTree();
+                    if (typeof currentPageTV !== 'undefined' && typeof loadTableView === 'function') loadTableView(currentPageTV);
+                }).catch(function() { layer.close(idx); layer.msg('创建失败', {icon:2}); });
+            });
+        },
+    });
+}
+
+// ============================================================
+// 编辑页面弹窗（含分类选择）
+// ============================================================
+
+function openEditor(id) {
+    fetch('/xiaoying_admin/api/pages/saved/' + id + '/')
+        .then(function(r) { return r.json(); })
+        .then(function(page) {
+            var catSelectorHtml = buildCategorySelector();
+            var html = '<div class="modal-scroll-wrap"><form class="layui-form" style="padding:15px;">';
+            html += '<div class="layui-form-item"><label class="layui-form-label">页面名称</label><div class="layui-input-block"><input type="text" id="editName" class="layui-input" value="' + escAttr(page.name) + '"></div></div>';
+            html += '<div class="layui-form-item"><label class="layui-form-label">需求描述</label><div class="layui-input-block"><textarea id="editInput" class="layui-textarea" rows="2">' + escHtml(page.input_content || '') + '</textarea></div></div>';
+            html += '<div class="layui-form-item"><label class="layui-form-label">所属分类</label><div class="layui-input-block">' + catSelectorHtml + '</div></div>';
+            html += '<div class="layui-form-item"><label class="layui-form-label">HTML 代码</label><div class="layui-input-block"><textarea id="editHtml" class="layui-textarea code-textarea">' + escHtml(page.html_content) + '</textarea></div></div>';
+            html += '<div class="layui-form-item" style="margin-top:15px;text-align:center;"><button type="button" class="layui-btn" id="editSaveBtn"><i class="fas fa-save"></i> 保存修改</button></div>';
+            html += '</form></div>';
+
+            layer.open({
+                type: 1,
+                title: '编辑页面: ' + page.name,
+                area: ['700px', 'auto'],
+                shadeClose: true,
+                content: html,
+                success: function(layero) {
+                    // 用预选分类初始化选择器
+                    initCategorySelector(layero, page.category_ids || []);
+
+                    layero.find('#editSaveBtn').on('click', function() {
+                        var name = layero.find('#editName').val().trim();
+                        var inputContent = layero.find('#editInput').val().trim();
+                        var htmlContent = layero.find('#editHtml').val().trim();
+                        if (!name) { layer.msg('请输入页面名称', {icon:5}); return; }
+                        if (!htmlContent) { layer.msg('请输入 HTML 内容', {icon:5}); return; }
+
+                        var wrap = layero.find('#catSelectorWrap')[0];
+                        var catIds = [];
+                        if (wrap) {
+                            var raw = wrap.getAttribute('data-selected');
+                            if (raw) {
+                                catIds = raw.split(',').map(function(s) { return parseInt(s, 10); }).filter(function(n) { return !isNaN(n); });
+                            }
+                        }
+
+                        var idx = layer.load(1);
+                        fetch('/xiaoying_admin/api/pages/saved/update/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id, name: name, input_content: inputContent, html_content: htmlContent }),
+                        }).then(function(r) { return r.json(); }).then(function(resp) {
+                            if (resp.error) { layer.close(idx); layer.msg(resp.error, {icon:2}); return; }
+                            try {
+                                // 页面已成功更新，先关闭加载层
+                                layer.close(idx);
+                                // 独立更新分类（不影响主流程）
+                                fetch('/xiaoying_admin/api/pages/saved/set-categories/', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: id, category_ids: catIds }),
+                                }).catch(function() {
+                                    // 分类更新失败不阻塞整体流程
+                                });
+                                layer.closeAll();
+                                layer.msg('已更新', {icon:1});
+                                loadTree();
+                                if (typeof currentPageTV !== 'undefined' && typeof loadTableView === 'function') loadTableView(currentPageTV);
+                            } catch(e) {
+                                layer.close(idx);
+                                layer.msg('保存失败: ' + (e.message || '未知错误'), {icon:2});
+                            }
+                        }).catch(function() {
+                            layer.close(idx);
+                            layer.msg('保存失败', {icon:2});
+                        });
+                    });
+                },
+            });
+        });
+    }
+
+// ============================================================
+// SEO 优化
+// ============================================================
+
+function seoOptimizePage(id) {
+    var nameEl = document.querySelector('.tree-node-page[data-page-id="' + id + '"] .tree-label');
+    var pageName = nameEl ? nameEl.textContent : '此页面';
+    layer.confirm(
+        '将调用 AI 对「' + pageName + '」进行全面 SEO 优化，<br>' +
+        '包括 Meta 标签、语义化结构、结构化数据等。<br>' +
+        '<span style="color:#FF9800;font-size:12px;">此操作将覆盖当前 HTML 内容，确定继续吗？</span>',
+        { icon: 3, title: 'SEO 优化', btn: ['开始优化', '取消'] },
+        function(index) {
+            layer.close(index);
+            // 显示进度弹窗
+            var progressHtml = '<div style="padding:20px 30px;text-align:center;">' +
+                '<div style="font-size:14px;color:#666;margin-bottom:15px;" id="seo-progress-msg">正在启动...</div>' +
+                '<div class="layui-progress layui-progress-big" style="max-width:400px;margin:0 auto;">' +
+                '<div class="layui-progress-bar layui-bg-green" id="seo-progress-bar" style="width:0%;"></div>' +
+                '</div>' +
+                '<div style="font-size:12px;color:#999;margin-top:10px;" id="seo-progress-pct">0%</div>' +
+                '</div>';
+            var idx = layer.open({
+                type: 1,
+                title: '<i class="fas fa-search" style="color:#5FB878;"></i> SEO 优化中',
+                area: ['500px', '200px'],
+                shadeClose: false,
+                content: progressHtml,
+            });
+
+            // 启动优化
+            fetch('/xiaoying_admin/api/pages/saved/seo-optimize/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ page_id: id }),
+            }).then(function(r) { return r.json(); }).then(function(resp) {
+                if (resp.error) {
+                    layer.close(idx);
+                    layer.msg(resp.error, {icon:2});
+                    return;
+                }
+                var taskId = resp.task_id;
+                // 轮询进度
+                var pollTimer = setInterval(function() {
+                    fetch('/xiaoying_admin/api/generate/progress/' + taskId + '/')
+                        .then(function(r) { return r.json(); })
+                        .then(function(prog) {
+                            var bar = document.getElementById('seo-progress-bar');
+                            var msg = document.getElementById('seo-progress-msg');
+                            var pct = document.getElementById('seo-progress-pct');
+                            if (bar) bar.style.width = prog.progress + '%';
+                            if (pct) pct.textContent = prog.progress + '%';
+                            if (msg) msg.textContent = prog.message || '处理中...';
+
+                            if (prog.status === 'completed') {
+                                clearInterval(pollTimer);
+                                layer.close(idx);
+                                layer.msg('SEO 优化完成！', {icon:1, time:2000});
+                                loadTree();
+                                if (typeof currentPageTV !== 'undefined' && typeof loadTableView === 'function') loadTableView(currentPageTV);
+                            } else if (prog.status === 'failed') {
+                                clearInterval(pollTimer);
+                                layer.close(idx);
+                                layer.msg('SEO 优化失败: ' + (prog.error_message || '未知错误'), {icon:2, time:5000});
+                            }
+                        }).catch(function() {
+                            // 忽略单个轮询错误，继续等待
+                        });
+                }, 1500);
+            }).catch(function() {
+                layer.close(idx);
+                layer.msg('启动优化失败', {icon:2});
+            });
+        }
+    );
+}
+</script>

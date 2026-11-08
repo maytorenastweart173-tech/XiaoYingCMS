@@ -1,0 +1,761 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+
+{% block title %}斗篷伪装 — 黑帽SEO{% endblock %}
+
+{% block body %}
+
+<style>
+/* ===== 斗篷弹窗表单样式 ===== */
+#cloakFormEl { display:flex; flex-direction:column; gap:4px; }
+.cloak-section {
+  background:#fafafa; border:1px solid #eee; border-radius:6px; padding:10px 12px;
+}
+.cloak-section-title {
+  font-size:14px; font-weight:600; color:#393D49; margin-bottom:8px;
+  display:flex; align-items:center; gap:6px;
+}
+.cloak-section-title i { color:#5FB878; font-size:14px; }
+.cloak-form-row { display:flex; gap:12px; flex-wrap:wrap; }
+.cloak-3col > .cloak-form-group { flex:1; min-width:140px; }
+.cloak-form-group { display:flex; flex-direction:column; gap:4px; }
+.cloak-label {
+  font-size:12px; color:#666; font-weight:500; display:flex; align-items:center; gap:6px;
+}
+.cloak-input {
+  height:34px; border:1px solid #d2d2d2; border-radius:4px; padding:0 10px; font-size:13px;
+  outline:none; transition:border .2s; width:100%; box-sizing:border-box;
+}
+.cloak-input:focus { border-color:#5FB878; }
+.cloak-select {
+  height:34px; border:1px solid #d2d2d2; border-radius:4px; padding:0 8px; font-size:13px;
+  outline:none; background:#fff; width:100%; box-sizing:border-box; cursor:pointer;
+}
+.cloak-select:focus { border-color:#5FB878; }
+.cloak-textarea {
+  width:100%; box-sizing:border-box; min-height:52px; padding:8px 10px;
+  border:1px solid #d2d2d2; border-radius:4px; font-size:13px; line-height:1.5;
+  outline:none; resize:vertical; font-family:inherit; transition:border .2s;
+}
+.cloak-textarea:focus { border-color:#5FB878; }
+.cloak-textarea-lg { min-height:90px; }
+.cloak-aux { font-size:12px; color:#999; margin-top:2px; line-height:1.4; }
+.cloak-tag {
+  display:inline-block; font-size:10px; font-weight:600; padding:1px 6px;
+  border-radius:3px; letter-spacing:0.5px;
+}
+.cloak-tag-spider { background:#fff3e0; color:#e65100; }
+.cloak-tag-search { background:#e3f2fd; color:#1565c0; }
+.cloak-tag-direct { background:#f3e5f5; color:#7b1fa2; }
+.cloak-switch { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; }
+.cloak-switch input { opacity:0; width:0; height:0; }
+.cloak-switch-slider {
+  position:absolute; cursor:pointer; inset:0; background:#ccc; border-radius:24px; transition:.3s;
+}
+.cloak-switch-slider::before {
+  content:''; position:absolute; left:3px; bottom:3px; width:18px; height:18px;
+  background:#fff; border-radius:50%; transition:.3s;
+}
+.cloak-switch input:checked + .cloak-switch-slider { background:#5FB878; }
+.cloak-switch input:checked + .cloak-switch-slider::before { transform:translateX(20px); }
+.domain-tag {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:2px 8px; border-radius:3px; font-size:12px; margin:2px 4px 2px 0;
+}
+.domain-del-tag { color:#999; text-decoration:none; font-size:14px; line-height:1; cursor:pointer; }
+.domain-del-tag:hover { color:#e54d4d; }
+
+/* ===== 斗篷规则表格样式优化 ===== */
+#ruleTable { border-collapse:separate; border-spacing:0; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+#ruleTable thead th {
+  background:linear-gradient(180deg,#f8f9fa,#eef1f5); color:#393D49; font-weight:600;
+  font-size:13px; padding:10px 12px; border-bottom:2px solid #d2d8e0; white-space:nowrap; user-select:none;
+}
+#ruleTable tbody td { padding:10px 12px; font-size:13px; transition:background .15s; border-bottom:1px solid #f0f0f0; }
+#ruleTable tbody tr:hover td { background:#f5f8ff; }
+#ruleTable tbody tr:nth-child(even) td { background:#fafbfc; }
+#ruleTable tbody tr:nth-child(even):hover td { background:#f0f4ff; }
+#ruleTable tbody tr:last-child td { border-bottom:none; }
+#ruleTable .action-cell { max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#ruleTable .status-badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px; font-weight:500; min-width:38px; text-align:center; }
+#ruleTable .status-badge.on { background:#e8f5e9; color:#1b5e20; }
+#ruleTable .status-badge.off { background:#fbe9e7; color:#bf360c; }
+
+/* ===== 操作下拉菜单（仿登录日志） ===== */
+.action-dropdown { position:relative; display:inline-block; }
+.action-dropdown .dropdown-menu {
+  display:none; position:absolute; right:0; top:100%; z-index:999;
+  min-width:145px; background:#fff; border:1px solid #e8e8e8;
+  border-radius:8px; box-shadow:0 8px 28px rgba(0,0,0,.14); padding:5px 0; margin-top:4px;
+}
+.action-dropdown.open .dropdown-menu { display:block; animation:dropIn .15s ease; }
+@keyframes dropIn { from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
+.action-dropdown .dropdown-item {
+  display:flex; align-items:center; gap:9px; padding:8px 16px;
+  color:#393D49; font-size:13px; text-decoration:none;
+  transition:background .1s; cursor:pointer;
+}
+.action-dropdown .dropdown-item:hover { background:#f0f7f0; color:#5FB878; }
+.action-dropdown .dropdown-item i { width:16px; text-align:center; color:#999; font-size:13px; }
+.action-dropdown .dropdown-item:hover i { color:#5FB878; }
+.action-dropdown .dropdown-item.dropdown-danger { color:#d32f2f; }
+.action-dropdown .dropdown-item.dropdown-danger:hover { background:#fff5f5; color:#d32f2f; }
+.action-dropdown .dropdown-item.dropdown-danger:hover i { color:#d32f2f; }
+.dropdown-trigger {
+  border-radius:6px !important; transition:all .15s !important;
+}
+.dropdown-trigger:hover {
+  border-color:#5FB878 !important; background:#f8fdf9 !important;
+}
+
+@media (max-width:700px) {
+  .cloak-3col { flex-direction:column; }
+  .cloak-3col > .cloak-form-group { min-width:unset; }
+  .cloak-section { padding:8px 10px; }
+}
+</style>
+
+{# ===== 顶部状态卡片 ===== #}
+{% include 'XiaoYingAdmin/黑帽SEO/斗篷伪装/子组件/状态卡片.html' %}
+
+{# ===== 规则列表 ===== #}
+<div class="layui-card" style="margin-top:15px;">
+  <div class="layui-card-header">
+    <i class="fas fa-list"></i> 斗篷规则列表
+    <button class="layui-btn layui-btn-sm layui-btn-normal" style="float:right" id="btnNewRule">
+      <i class="fas fa-plus"></i> 新增规则
+    </button>
+  </div>
+  <div class="layui-card-body" style="padding:10px 15px;">
+
+    {# 搜索 & 筛选工具栏 #}
+    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+      <div style="position:relative;flex:1;min-width:200px;max-width:360px;">
+        <i class="fas fa-search" style="position:absolute;left:10px;top:9px;color:#999;font-size:14px;"></i>
+        <input type="text" id="searchInput" class="layui-input"
+               style="padding-left:32px;height:34px;"
+               placeholder="搜索域名…">
+      </div>
+      <select id="filterEnabled" style="width:130px;height:34px;border:1px solid #d2d2d2;border-radius:4px;padding:0 8px;">
+        <option value="all">全部规则</option>
+        <option value="enabled">仅启用</option>
+        <option value="disabled">仅禁用</option>
+      </select>
+      <span id="ruleCountBadge" style="font-size:13px;color:#999;margin-left:auto;">共 0 条</span>
+    </div>
+
+    {# 表格：不能有 overflow:hidden，否则裁剪下拉菜单 #}
+    <table class="layui-table" id="ruleTable" lay-skin="line" style="margin:0;">
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th style="width:200px;">域名</th>
+          <th style="width:80px;">状态</th>
+          <th>备注</th>
+          <th>爬虫行为</th>
+          <th>搜索引擎用户行为</th>
+          <th>直接访问行为</th>
+          <th style="width:180px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="ruleTableBody">
+        <tr><td colspan="8" style="text-align:center;padding:30px 0;color:#999;">加载中...</td></tr>
+      </tbody>
+    </table>
+
+    {# 分页 #}
+    <div id="paginationBar" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:13px;color:#999;">
+        第 <span id="pageInfo">1/1</span> 页
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="layui-btn layui-btn-sm" id="btnFirstPage" title="首页">&laquo;</button>
+        <button class="layui-btn layui-btn-sm" id="btnPrevPage" title="上一页">&lsaquo;</button>
+        <span id="pageNumbers" style="display:flex;gap:4px;align-items:center;"></span>
+        <button class="layui-btn layui-btn-sm" id="btnNextPage" title="下一页">&rsaquo;</button>
+        <button class="layui-btn layui-btn-sm" id="btnLastPage" title="末页">&raquo;</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;font-size:13px;color:#999;">
+        跳至
+        <input type="number" id="gotoPageInput" min="1" style="width:60px;height:30px;border:1px solid #d2d2d2;border-radius:4px;text-align:center;padding:0 4px;">
+        页
+        <button class="layui-btn layui-btn-sm" id="btnGotoPage">GO</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{# ===== 参考说明（手风琴，3 个折叠项） ===== #}
+<div class="layui-collapse" lay-accordion style="margin-top:15px;">
+    {% include 'XiaoYingAdmin/黑帽SEO/斗篷伪装/子组件/手风琴_决策矩阵.html' %}
+    {% include 'XiaoYingAdmin/黑帽SEO/斗篷伪装/子组件/手风琴_HTTP状态码.html' %}
+    {% include 'XiaoYingAdmin/黑帽SEO/斗篷伪装/子组件/手风琴_推荐策略.html' %}
+</div>
+
+{# ===== 编辑弹窗的模板 ===== #}
+<script type="text/html" id="cloakFormTpl">
+{% include 'XiaoYingAdmin/黑帽SEO/斗篷伪装/子组件/斗篷伪装配置.html' %}
+</script>
+
+<script>
+// ===== 域名标签管理（供弹窗使用） =====
+(function() {
+  var _tags = [];
+  window.__cloakDomainTags = function() { return _tags.slice(); };
+  window.__cloakSetDomainTags = function(arr) {
+    _tags = (arr || []).filter(function(t){ return t.trim().length > 0; });
+    renderTags();
+  };
+  window.__cloakAddDomainTag = function(domain) {
+    domain = domain.trim().toLowerCase();
+    if (!domain) return false;
+    // 检查重复
+    for (var i = 0; i < _tags.length; i++) {
+      if (_tags[i] === domain) return false;
+    }
+    _tags.push(domain);
+    renderTags();
+    return true;
+  };
+  window.__cloakRemoveDomainTag = function(domain) {
+    var idx = _tags.indexOf(domain);
+    if (idx === -1) return;
+    _tags.splice(idx, 1);
+    renderTags();
+  };
+  function renderTags() {
+    var wrap = document.getElementById('domainTagsWrap');
+    if (!wrap) return;
+    if (_tags.length === 0) {
+      wrap.innerHTML = '<span style="color:#bbb;font-size:12px;">暂无绑定域名（留空 = 全局默认）</span>';
+      return;
+    }
+    wrap.innerHTML = _tags.map(function(d) {
+      return '<span class="domain-tag" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-size:12px;margin:2px 4px 2px 0;background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;">'
+        + '<span>' + d + '</span>'
+        + '<a href="javascript:;" class="domain-del-tag" style="color:#999;text-decoration:none;font-size:14px;line-height:1;cursor:pointer;" data-domain="' + d.replace(/"/g,'&quot;') + '">&times;</a>'
+        + '</span>';
+    }).join('');
+    // 绑定删除事件
+    wrap.querySelectorAll('.domain-del-tag').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var domain = this.dataset.domain;
+        if (domain && window.__cloakRemoveDomainTag) window.__cloakRemoveDomainTag(domain);
+      });
+    });
+  }
+})();
+
+// ===== 初始化：LayUI 折叠面板 =====
+layui.use('element', function(){});
+
+// ===== 行为 & 重定向选项（从后端渲染到页面） =====
+var ACTION_OPTIONS = {{ action_choices_json|safe }};
+var REDIRECT_OPTIONS = {{ redirect_choices_json|safe }};
+
+// ===== 当前分页状态 =====
+var STATE = {
+  page: 1,
+  pageSize: {{ default_page_size }},
+  search: '',
+  enabled: 'all',
+  total: 0,
+  totalPages: 1,
+};
+
+// ===== 渲染选择框 HTML =====
+function renderSelect(name, currentVal, options) {
+  var html = '<select name="' + name + '" class="cloak-select">';
+  for (var i = 0; i < options.length; i++) {
+    var sel = options[i].value == currentVal ? ' selected' : '';
+    html += '<option value="' + options[i].value + '"' + sel + '>' + options[i].label + '</option>';
+  }
+  html += '</select>';
+  return html;
+}
+
+function renderRedirectSelect(name, currentVal, options) {
+  var html = '<select name="' + name + '" class="cloak-select">';
+  for (var i = 0; i < options.length; i++) {
+    var sel = options[i].code == currentVal ? ' selected' : '';
+    html += '<option value="' + options[i].code + '"' + sel + '>' + options[i].code + ' — ' + options[i].label + '</option>';
+  }
+  html += '</select>';
+  return html;
+}
+
+// ===== 状态常量映射 =====
+// 列表最多直接展示的域名标签数量，超出部分折叠为 "+N"，悬停可查看完整列表
+var MAX_DISPLAY_DOMAINS = 2;
+
+function badgeHtml(rule) {
+  var dl = (rule.domains && rule.domains.length) ? rule.domains : (rule.domain ? [rule.domain] : []);
+  if (!dl.length) {
+    return '<span class="layui-badge layui-bg-cyan">全局默认</span>';
+  }
+  var inner = dl.slice(0, MAX_DISPLAY_DOMAINS).map(function(d) {
+    return '<span class="domain-tag" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-size:12px;margin:2px 4px 2px 0;background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;white-space:nowrap;">' + escHtml(d) + '</span>';
+  }).join('');
+  if (dl.length > MAX_DISPLAY_DOMAINS) {
+    inner += '<span style="display:inline-flex;align-items:center;font-size:12px;color:#999;background:#f5f5f5;border:1px solid #eee;border-radius:3px;padding:2px 8px;margin:2px 0;white-space:nowrap;">+ ' + (dl.length - MAX_DISPLAY_DOMAINS) + '</span>';
+  }
+  // 外层容器统一挂 title，悬停展示全部域名
+  return '<span style="display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 2px;vertical-align:middle;" title="' + escHtml(dl.join('、')) + '">' + inner + '</span>';
+}
+
+function statusBadge(enabled) {
+  return enabled
+    ? '<span class="status-badge on">启用</span>'
+    : '<span class="status-badge off">禁用</span>';
+}
+
+function escHtml(s) {
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(s));
+  return d.innerHTML;
+}
+
+// ===== 加载规则列表 =====
+function loadRules() {
+  var tbody = document.getElementById('ruleTableBody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px 0;color:#999;"><i class="fas fa-spinner fa-pulse"></i> 加载中...</td></tr>';
+
+  var params = new URLSearchParams({
+    page: STATE.page,
+    page_size: STATE.pageSize,
+    search: STATE.search,
+    enabled: STATE.enabled,
+  });
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', '{% url "seo_cloak_api_list" %}?' + params.toString());
+  xhr.onload = function() {
+    if (xhr.status !== 200) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px 0;color:#e54d4d;">加载失败</td></tr>';
+      return;
+    }
+    var res = JSON.parse(xhr.responseText);
+    if (!res.ok) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px 0;color:#e54d4d;">' + escHtml(res.error || '加载失败') + '</td></tr>';
+      return;
+    }
+
+    STATE.total = res.total;
+    STATE.totalPages = res.total_pages;
+    STATE.page = res.page;
+
+    renderTable(res.rules);
+    renderPagination();
+  };
+  xhr.send();
+}
+
+// 行为值 → 中文标签映射（纯展示层，与后端 action_choices 保持一致）
+var ACTION_LABELS = {
+  pass_through: '放行（返回正常内容）',
+  show_seo:      '展示 SEO 优化内容',
+  show_cloak:    '展示伪装内容',
+  redirect:      '重定向到指定 URL',
+  block:         '阻止访问',
+};
+function actionLabel(val) { return ACTION_LABELS[val] || val; }
+
+// ===== 渲染表格行 =====
+function renderTable(rules) {
+  var tbody = document.getElementById('ruleTableBody');
+  if (!rules || rules.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px 0;color:#999;">暂无规则</td></tr>';
+    document.getElementById('ruleCountBadge').textContent = '共 0 条';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < rules.length; i++) {
+    var r = rules[i];
+    var num = (STATE.page - 1) * STATE.pageSize + i + 1;
+    // 备注：超过 50 字截断 + 完整内容放 title 悬停查看
+    var remarkText = (r.remark || '').trim();
+    var remarkCell;
+    if (remarkText) {
+      var short = remarkText.length > 50 ? remarkText.slice(0, 50) + '…' : remarkText;
+      // word-break:keep-all 防止浏览器对纯中文按字换行；
+      // overflow-wrap:break-word 让超长英文/URL 在词内断行；
+      // max-width 限制单元格最大宽度。
+      remarkCell = '<span title="' + escHtml(remarkText) + '" style="display:inline-block;max-width:340px;color:#666;white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.5;">' + escHtml(short) + '</span>';
+    } else {
+      remarkCell = '<span style="color:#ccc;">—</span>';
+    }
+    html += '<tr data-id="' + r.id + '" data-domain="' + escHtml(r.domain) + '" data-domains="' + escHtml(JSON.stringify(r.domains || [])) + '">';
+    html += '<td>' + num + '</td>';
+    html += '<td>' + badgeHtml(r) + '</td>';
+    html += '<td>' + statusBadge(r.is_enabled) + '</td>';
+    html += '<td style="word-break:keep-all;overflow-wrap:break-word;">' + remarkCell + '</td>';
+    html += '<td class="action-cell">' + actionLabel(r.spider_action) + '</td>';
+    html += '<td class="action-cell">' + actionLabel(r.search_action) + '</td>';
+    html += '<td class="action-cell">' + actionLabel(r.direct_action) + '</td>';
+    html += '<td>';
+    html += '<div class="action-dropdown">';
+    html += '<button class="layui-btn layui-btn-sm layui-btn-primary dropdown-trigger" style="font-size:14px;padding:0 10px;line-height:30px;height:30px;"><i class="fas fa-caret-down"></i></button>';
+    html += '<div class="dropdown-menu">';
+    html += '<a href="javascript:;" class="dropdown-item btn-edit-rule"><i class="fas fa-pen"></i> 编辑</a>';
+    if (r.domain) {
+      html += '<a href="javascript:;" class="dropdown-item dropdown-danger btn-delete-rule"><i class="fas fa-trash-alt"></i> 删除</a>';
+    }
+    html += '</div></div>';
+    html += '</td>';
+    html += '</tr>';
+  }
+  tbody.innerHTML = html;
+  document.getElementById('ruleCountBadge').textContent = '共 ' + STATE.total + ' 条';
+
+  // 给新渲染的按钮绑定事件
+  bindRowEvents();
+}
+
+// ===== 绑定每行的事件（事件委托） =====
+function bindRowEvents() {
+  // 所有操作都委托在 tbody 上，无需逐个绑定
+}
+
+// ===== 下拉菜单开关 & 全局关闭 =====
+document.addEventListener('click', function(e) {
+  // 点击下拉触发器 → 切换当前
+  var trigger = e.target.closest('.dropdown-trigger');
+  if (trigger) {
+    e.stopPropagation();
+    var dd = trigger.closest('.action-dropdown');
+    // 关闭其他已打开的
+    document.querySelectorAll('#ruleTableBody .action-dropdown.open').forEach(function(d) {
+      if (d !== dd) d.classList.remove('open');
+    });
+    dd.classList.toggle('open');
+    return;
+  }
+
+  // 点击菜单项 → 关闭所属下拉
+  var item = e.target.closest('.dropdown-item');
+  if (item) {
+    var dd = item.closest('.action-dropdown');
+    if (dd) dd.classList.remove('open');
+
+    // 编辑
+    if (item.classList.contains('btn-edit-rule')) {
+      e.stopPropagation();
+      var tr = item.closest('tr');
+      if (!tr) return;
+      var ruleId = parseInt(tr.dataset.id);
+      if (!ruleId) return;
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/xiaoying_admin/seo/cloak/api/rules/' + ruleId + '/');
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          var res = JSON.parse(xhr.responseText);
+          if (res.ok) openCloakForm(res.config);
+          else layer.msg(res.error || '获取规则失败', {icon:2});
+        }
+      };
+      xhr.send();
+      return;
+    }
+
+    // 删除
+    if (item.classList.contains('btn-delete-rule')) {
+      e.stopPropagation();
+      var tr = item.closest('tr');
+      if (!tr) return;
+      var ruleId = parseInt(tr.dataset.id);
+      var domainLabel = tr.dataset.domain;
+      try {
+        var dl = JSON.parse(tr.dataset.domains || '[]');
+        domainLabel = dl.length > 1 ? dl[0] + ' 等 ' + dl.length + ' 个域名' : (dl[0] || tr.dataset.domain);
+      } catch(e) {}
+      layer.confirm('确定删除域名 <code>' + escHtml(domainLabel) + '</code> 的斗篷规则？', {
+        icon: 3, title: '确认删除'
+      }, function(index) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/xiaoying_admin/seo/cloak/api/rules/' + ruleId + '/delete/');
+        xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            layer.msg('规则已删除', {icon:1});
+            loadRules();
+          } else {
+            var msg = '删除失败';
+            try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+            layer.msg(msg, {icon:2});
+          }
+        };
+        xhr.onerror = function() { layer.msg('网络错误', {icon:2}); };
+        xhr.send();
+        layer.close(index);
+      });
+      return;
+    }
+
+    return;
+  }
+
+  // 点击页面其他区域 → 关闭所有下拉
+  document.querySelectorAll('#ruleTableBody .action-dropdown.open').forEach(function(d) {
+    d.classList.remove('open');
+  });
+});
+
+// ===== 渲染分页 =====
+function renderPagination() {
+  document.getElementById('pageInfo').textContent = STATE.page + '/' + STATE.totalPages;
+
+  // 分页数字（首尾+当前±2）
+  var nums = [];
+  var tp = STATE.totalPages;
+  var cur = STATE.page;
+  var startPage = Math.max(1, cur - 2);
+  var endPage = Math.min(tp, cur + 2);
+  if (startPage > 1) { nums.push(1); if (startPage > 2) nums.push('…'); }
+  for (var p = startPage; p <= endPage; p++) nums.push(p);
+  if (endPage < tp) { if (endPage < tp - 1) nums.push('…'); nums.push(tp); }
+
+  var container = document.getElementById('pageNumbers');
+  container.innerHTML = nums.map(function(n) {
+    if (n === '…') return '<span style="padding:0 4px;color:#999;">…</span>';
+    var active = n === cur ? ' layui-btn-primary' : '';
+    return '<button class="layui-btn layui-btn-sm' + active + ' page-num-btn" data-page="' + n + '">' + n + '</button>';
+  }).join('');
+
+  // 绑定页码点击
+  document.querySelectorAll('.page-num-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      goTo(parseInt(this.dataset.page));
+    });
+  });
+
+  // 按钮禁用状态
+  document.getElementById('btnFirstPage').disabled = cur <= 1;
+  document.getElementById('btnPrevPage').disabled = cur <= 1;
+  document.getElementById('btnNextPage').disabled = cur >= tp;
+  document.getElementById('btnLastPage').disabled = cur >= tp;
+}
+
+// ===== 跳页 =====
+function goTo(page) {
+  if (page < 1 || page > STATE.totalPages || page === STATE.page) return;
+  STATE.page = page;
+  loadRules();
+}
+
+// ===== 绑定弹窗内的域名输入事件 =====
+function bindDomainInputEvents() {
+  var input = document.getElementById('domainInput');
+  var addBtn = document.getElementById('domainAddBtn');
+  if (!input || !addBtn) return;
+
+  function addDomain() {
+    var val = input.value.trim();
+    if (!val) { input.focus(); return; }
+    if (typeof window.__cloakAddDomainTag === 'function') {
+      window.__cloakAddDomainTag(val);
+    }
+    input.value = '';
+    input.focus();
+  }
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addDomain(); }
+  });
+  addBtn.addEventListener('click', function() { addDomain(); });
+}
+
+// ===== 打开编辑/新增弹窗 =====
+function openCloakForm(rule) {
+  var isNew = !rule || !rule.id;
+  rule = rule || {
+    id: null,
+    domain: '',
+    is_enabled: false,
+    search_engines: {{ config.search_engines|safe }},
+    spider_keywords: {{ config.spider_keywords|safe }},
+    spider_action: 'show_seo',
+    search_action: 'show_cloak',
+    direct_action: 'pass_through',
+    redirect_status_code: 302,
+    spider_redirect_url: '',
+    search_redirect_url: '',
+    direct_redirect_url: '',
+    whitelist_paths_raw: '',
+    seo_content: '',
+    cloak_content: '',
+    remark: '',
+  };
+
+  var tpl = document.getElementById('cloakFormTpl').innerHTML;
+
+  // 填充表单值
+  tpl = tpl.replace(/<!-- RULE_ID -->/g, rule.id || '');
+  tpl = tpl.replace(/<!-- RULE_DOMAIN -->/g, '');  // 不再用单域名占位
+  tpl = tpl.replace(/<!-- CHECKED_IF_ENABLED -->/g, rule.is_enabled ? 'checked' : '');
+  tpl = tpl.replace(/<!-- SEARCH_ENGINES_LIST -->/g, (rule.search_engines || []).join('\n'));
+  tpl = tpl.replace(/<!-- SPIDER_KEYWORDS_LIST -->/g, (rule.spider_keywords || []).join('\n'));
+
+  // 行为选择框
+  for (var k in {spider_action:1, search_action:1, direct_action:1}) {
+    var re = new RegExp('<select\\s+name="' + k + '"[\\s\\S]*?<\\/select>');
+    tpl = tpl.replace(re, renderSelect(k, rule[k] || 'pass_through', ACTION_OPTIONS));
+  }
+
+  // 重定向状态码
+  tpl = tpl.replace(/<select\s+name="redirect_status_code"[\s\S]*?<\/select>/, renderRedirectSelect('redirect_status_code', rule.redirect_status_code || 302, REDIRECT_OPTIONS));
+
+  // 重定向 URL
+  tpl = tpl.replace(/<!-- SPIDER_REDIRECT_URL -->/g, rule.spider_redirect_url || '');
+  tpl = tpl.replace(/<!-- SEARCH_REDIRECT_URL -->/g, rule.search_redirect_url || '');
+  tpl = tpl.replace(/<!-- DIRECT_REDIRECT_URL -->/g, rule.direct_redirect_url || '');
+  tpl = tpl.replace(/<!-- WHITELIST_PATHS_RAW -->/g, rule.whitelist_paths_raw || '');
+  tpl = tpl.replace(/<!-- SEO_CONTENT -->/g, rule.seo_content || '');
+  tpl = tpl.replace(/<!-- CLOAK_CONTENT -->/g, rule.cloak_content || '');
+  tpl = tpl.replace(/<!-- RULE_REMARK -->/g, rule.remark || '');
+
+  // 域名输入框禁用（编辑默认规则时）
+  if (!isNew && !rule.domain) {
+    tpl = tpl.replace('id="cloakDomain"', 'id="cloakDomain" readonly disabled style="background:#f5f5f5;color:#999;"');
+  }
+
+  var title = isNew ? '新增斗篷规则' : '编辑斗篷规则 — ' + (rule.domain || '全局默认');
+
+  var idx = layer.open({
+    type: 1,
+    title: title,
+    area: ['820px', '90vh'],
+    shade: 0.3,
+    content: tpl,
+    btn: ['保存配置', '取消'],
+    yes: function(index) {
+      submitCloakForm(rule.id, function() {
+        layer.close(index);
+        loadRules();
+      });
+    },
+    btn2: function(index) {
+      layer.close(index);
+    },
+    success: function(layero) {
+      // 初始化域名标签（一条规则可绑定多个域名，全部回填）
+      setTimeout(function() {
+        if (typeof window.__cloakSetDomainTags === 'function') {
+          var tags = (rule.domains && rule.domains.length) ? rule.domains.slice() : (rule.domain ? [rule.domain] : []);
+          window.__cloakSetDomainTags(tags);
+        }
+        // 绑定域名输入框事件
+        bindDomainInputEvents();
+      }, 50);
+    }
+  });
+}
+
+// ===== 提交表单 =====
+function submitCloakForm(ruleId, callback) {
+  var form = document.getElementById('cloakFormEl');
+  if (!form) return;
+
+  function linesToJson(text) {
+    var arr = (text || '').split('\n').map(function(s){return s.trim();}).filter(function(s){return s.length>0;});
+    return JSON.stringify(arr);
+  }
+
+  // 提交前先同步 input 框中尚未按 Enter 的域名
+  // 避免用户填了域名却忘记按 Enter 导致前端把它当作空域名处理
+  var pendingInput = document.getElementById('domainInput');
+  if (pendingInput && pendingInput.value.trim()) {
+    if (typeof window.__cloakAddDomainTag === 'function') {
+      window.__cloakAddDomainTag(pendingInput.value.trim());
+    }
+    pendingInput.value = '';
+  }
+
+  // 收集域名标签：一条规则绑定全部域名（空数组 = 全局默认规则）
+  var domains = typeof window.__cloakDomainTags === 'function' ? window.__cloakDomainTags() : [];
+
+  var fd = new FormData(form);
+  var payload = {
+    id: ruleId,
+    domains: domains,
+    is_enabled: fd.get('is_enabled') === 'on',
+    search_engines: linesToJson(fd.get('search_engines')),
+    spider_keywords: linesToJson(fd.get('spider_keywords')),
+    spider_action: fd.get('spider_action'),
+    search_action: fd.get('search_action'),
+    direct_action: fd.get('direct_action'),
+    redirect_status_code: parseInt(fd.get('redirect_status_code') || 302),
+    spider_redirect_url: fd.get('spider_redirect_url') || '',
+    search_redirect_url: fd.get('search_redirect_url') || '',
+    direct_redirect_url: fd.get('direct_redirect_url') || '',
+    whitelist_paths: fd.get('whitelist_paths') || '',
+    seo_content: fd.get('seo_content') || '',
+    cloak_content: fd.get('cloak_content') || '',
+    remark: fd.get('remark') || '',
+  };
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '{% url "seo_cloak_config_save" %}');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      layer.msg('保存成功', {icon: 1});
+      if (callback) callback();
+    } else {
+      var msg = '保存失败';
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+      layer.msg(msg, {icon: 2});
+    }
+  };
+  xhr.onerror = function() { layer.msg('网络错误', {icon: 2}); };
+  xhr.send(JSON.stringify(payload));
+}
+
+// ===== 事件绑定 =====
+document.addEventListener('DOMContentLoaded', function() {
+  // 初始加载
+  loadRules();
+
+  // 新增规则
+  document.getElementById('btnNewRule').addEventListener('click', function() {
+    openCloakForm(null);
+  });
+
+  // 搜索（防抖 300ms）
+  var searchTimer;
+  document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function() {
+      STATE.search = document.getElementById('searchInput').value.trim();
+      STATE.page = 1;
+      loadRules();
+    }, 300);
+  });
+
+  // 筛选
+  document.getElementById('filterEnabled').addEventListener('change', function() {
+    STATE.enabled = this.value;
+    STATE.page = 1;
+    loadRules();
+  });
+
+  // 分页按钮
+  document.getElementById('btnFirstPage').addEventListener('click', function() { goTo(1); });
+  document.getElementById('btnPrevPage').addEventListener('click', function() { goTo(STATE.page - 1); });
+  document.getElementById('btnNextPage').addEventListener('click', function() { goTo(STATE.page + 1); });
+  document.getElementById('btnLastPage').addEventListener('click', function() { goTo(STATE.totalPages); });
+
+  // 跳页
+  document.getElementById('gotoPageInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnGotoPage').click(); }
+  });
+  document.getElementById('btnGotoPage').addEventListener('click', function() {
+    var val = parseInt(document.getElementById('gotoPageInput').value);
+    if (!isNaN(val)) goTo(val);
+  });
+});
+</script>
+
+{% endblock %}

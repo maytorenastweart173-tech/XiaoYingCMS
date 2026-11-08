@@ -1,0 +1,125 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}数据分析 — 蜘蛛管理{% endblock %}
+
+{% block head %}
+<style>
+/* ===== 筛选栏 ===== */
+.analytics-filter {
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#fff;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.05);
+}
+.analytics-filter select {
+  height:30px;padding:0 8px;border:1px solid #e6e6e6;border-radius:2px;
+  background:#fff;color:#393D49;font-size:12px;cursor:pointer;outline:none;
+}
+.analytics-filter select:hover { border-color:#1E9FFF; }
+.analytics-filter input {
+  height:30px;padding:0 8px;border:1px solid #e6e6e6;border-radius:2px;
+  font-size:12px;outline:none;
+}
+.analytics-filter input:focus { border-color:#1E9FFF; }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+  <div>
+    <i class="fas fa-chart-pie" style="color:#1E9FFF;font-size:18px;"></i>
+    <span style="font-size:16px;font-weight:600;color:#393D49;margin-left:6px;">数据分析</span>
+    <span style="font-size:12px;color:#999;margin-left:8px;">
+      蜘蛛访问数据概览 · 图表分析 · 趋势洞察
+    </span>
+  </div>
+</div>
+
+{# ===== 筛选工具栏 ===== #}
+<form method="get" action="" class="analytics-filter" style="margin-bottom:14px;padding:10px 14px;">
+  <span style="font-size:12px;color:#666;line-height:30px;"><i class="fas fa-filter"></i> 筛选：</span>
+
+  <select name="days">
+    <option value="today" {% if days == 'today' %}selected{% endif %}>仅今天</option>
+    <option value="1d"    {% if days == '1d' %}selected{% endif %}>近1天</option>
+    <option value="3d"    {% if days == '3d' %}selected{% endif %}>近3天</option>
+    <option value="7d"    {% if days == '7d' or not days %}selected{% endif %}>近7天</option>
+    <option value="30d"   {% if days == '30d' %}selected{% endif %}>近30天</option>
+    <option value="all"   {% if days == 'all' %}selected{% endif %}>全部</option>
+  </select>
+
+  <select name="who">
+    <option value=""        {% if not current_who %}selected{% endif %}>所有访问者</option>
+    <option value="spider"  {% if current_who == 'spider'  %}selected{% endif %}>🕷 仅蜘蛛</option>
+    <option value="human"   {% if current_who == 'human'   %}selected{% endif %}>👤 仅真人</option>
+    <option value="direct"  {% if current_who == 'direct'  %}selected{% endif %}>🔗 仅直接访问</option>
+  </select>
+
+  <select name="spider">
+    <option value="">所有爬虫</option>
+    {% for s in all_spider_names %}
+      <option value="{{ s }}" {% if current_spider == s %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+
+  <input type="text" name="ip" value="{{ current_ip }}" placeholder="按 IP 过滤" style="width:150px;">
+
+  <select name="method">
+    <option value="">所有方法</option>
+    <option value="GET"    {% if current_method == 'GET' %}selected{% endif %}>GET</option>
+    <option value="POST"   {% if current_method == 'POST' %}selected{% endif %}>POST</option>
+    <option value="HEAD"   {% if current_method == 'HEAD' %}selected{% endif %}>HEAD</option>
+  </select>
+
+  <button type="submit" class="layui-btn layui-btn-sm" style="line-height:28px;">
+    <i class="fas fa-search"></i> 应用
+  </button>
+  <a href="{% url 'spider_analytics' %}" class="layui-btn layui-btn-sm layui-btn-primary" style="line-height:28px;">
+    <i class="fas fa-undo"></i> 重置
+  </a>
+</form>
+
+{# ===== 统计概览（4 卡片） ===== #}
+{% include 'XiaoYingAdmin/蜘蛛管理/蜘蛛日志/子组件/统计概览.html' %}
+
+{# ===== 图表分析（爬虫时段分布 + 访问者类型分布） ===== #}
+<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+  <div style="flex:1.7;min-width:340px;">
+    <div class="layui-card" style="margin-bottom:0;">
+      <div class="layui-card-header" style="border-bottom:1px solid #f0f0f0;">
+        <i class="fas fa-chart-bar"></i> 爬虫时段分布
+        <span style="float:right;font-size:12px;color:#999;">
+          基于当前筛选 · 共 <strong style="color:#5FB878;">{{ period_stats.total }}</strong> 次爬虫访问
+        </span>
+      </div>
+      <div class="layui-card-body" style="padding:10px 14px;">
+        {% include 'XiaoYingAdmin/蜘蛛管理/蜘蛛日志/子组件/爬虫时段树状图.html' %}
+      </div>
+    </div>
+  </div>
+  <div style="flex:1;min-width:260px;">
+    <div class="layui-card" style="margin-bottom:0;">
+      <div class="layui-card-header" style="border-bottom:1px solid #f0f0f0;">
+        <i class="fas fa-chart-pie"></i> 访问者类型分布
+        <span style="float:right;font-size:12px;color:#999;">
+          共 <strong style="color:#1E9FFF;">{{ counts.total }}</strong> 次 · <strong>{{ who_label }}</strong>
+        </span>
+      </div>
+      <div class="layui-card-body" style="padding:10px 12px;">
+        {% include 'XiaoYingAdmin/蜘蛛管理/蜘蛛日志/子组件/访问者类型统计.html' %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ===== 访问统计（TOP 页面 + TOP IP） ===== #}
+{% include 'XiaoYingAdmin/蜘蛛管理/蜘蛛日志/子组件/访问统计.html' %}
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+function escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+</script>
+{% endblock %}

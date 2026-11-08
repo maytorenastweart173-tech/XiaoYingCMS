@@ -1,0 +1,353 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}路径过滤 — 蜘蛛管理{% endblock %}
+
+{% block head %}
+<style>
+.filter-toolbar {
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;flex-wrap:wrap;
+}
+.filter-empty {
+  text-align:center;padding:40px 0;color:#ccc;
+}
+.filter-empty i { font-size:36px;display:block;margin-bottom:8px; }
+.pagination-bar {
+  display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;font-size:13px;
+}
+.pagination-bar button {
+  min-width:32px;height:28px;border:1px solid #e0e0e0;border-radius:3px;background:#fff;
+  cursor:pointer;font-size:12px;color:#666;transition:all .15s;
+}
+.pagination-bar button:hover:not(:disabled) { border-color:#1E9FFF;color:#1E9FFF; }
+.pagination-bar button:disabled { opacity:.4;cursor:default; }
+.page-size-select {
+  border:1px solid #e0e0e0;border-radius:3px;padding:2px 4px;font-size:12px;outline:none;
+}
+.batch-textarea {
+  width:100%;border:1px solid #e0e0e0;border-radius:3px;padding:8px 10px;
+  font-size:12px;font-family:monospace;resize:vertical;min-height:120px;outline:none;
+}
+.batch-textarea:focus { border-color:#1E9FFF; }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+  <div>
+    <i class="fas fa-ban" style="color:#e74c3c;font-size:18px;"></i>
+    <span style="font-size:16px;font-weight:600;color:#393D49;margin-left:6px;">路径过滤</span>
+    <span style="font-size:12px;color:#999;margin-left:8px;">
+      配置哪些路径的访问 <strong>不记录</strong> 到蜘蛛日志
+    </span>
+  </div>
+</div>
+
+{# 提示 #}
+<div class="layui-alert layui-alert-info" style="margin-bottom:12px;padding:8px 12px;font-size:12px;border-radius:3px;background:#e6f7ff;border:1px solid #bae7ff;color:#333;">
+  <i class="fas fa-info-circle" style="color:#1890ff;"></i>
+  支持前缀匹配。例如 <code style="background:#fff;padding:1px 4px;border-radius:2px;">/api/health/</code> 会同时匹配 <code style="background:#fff;padding:1px 4px;border-radius:2px;">/api/health/check/</code> 和 <code style="background:#fff;padding:1px 4px;border-radius:2px;">/api/health/ping</code>。
+  添加或删除操作会 <strong>立即生效</strong>。
+</div>
+
+{# 规则管理卡片 #}
+<div class="layui-card">
+  <div class="layui-card-header" style="border-bottom:1px solid #f0f0f0;">
+    <i class="fas fa-list"></i> 忽略路径列表
+    <span style="float:right;font-size:12px;color:#999;" id="countBadge">加载中…</span>
+  </div>
+  <div class="layui-card-body">
+
+    {# 工具栏 #}
+    <div class="filter-toolbar">
+      <div style="display:flex;align-items:center;gap:6px;flex:1;max-width:420px;">
+        <input type="text" id="newPathInput" placeholder="输入路径前缀，如 /api/health/"
+               style="flex:1;border:1px solid #e0e0e0;border-radius:3px;padding:6px 10px;font-size:13px;outline:none;"
+               onkeydown="if(event.key==='Enter') addPath()">
+        <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="addPath()">
+          <i class="fas fa-plus"></i> 添加
+        </button>
+      </div>
+      <button class="layui-btn layui-btn-sm layui-btn-primary" onclick="showBatchImport()">
+        <i class="fas fa-layer-group"></i> 批量导入
+      </button>
+    </div>
+
+    {# 表格 #}
+    <div id="tableContainer">
+      <table class="layui-table" style="margin:0;font-size:13px;">
+        <thead>
+          <tr>
+            <th style="width:50px;text-align:center;">#</th>
+            <th>路径</th>
+            <th style="width:90px;text-align:center;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="pathTableBody">
+          <tr><td colspan="3" style="text-align:center;padding:30px 0;color:#ccc;">
+            <i class="fas fa-inbox" style="font-size:24px;display:block;margin-bottom:6px;"></i>
+            暂无忽略路径
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    {# 分页 #}
+    <div class="pagination-bar" id="paginationBar" style="display:none;">
+      <button onclick="goPage(1)" title="首页"><i class="fas fa-angle-double-left"></i></button>
+      <button onclick="goPage(currentPage - 1)" title="上一页"><i class="fas fa-angle-left"></i></button>
+      <span id="pageInfo"></span>
+      <button onclick="goPage(currentPage + 1)" title="下一页"><i class="fas fa-angle-right"></i></button>
+      <button onclick="goPage(totalPages)" title="末页"><i class="fas fa-angle-double-right"></i></button>
+      <span style="color:#999;margin-left:4px;">
+        每页
+        <select id="pageSizeSelect" onchange="changePageSize(this.value)" style="border:1px solid #e0e0e0;border-radius:3px;padding:2px 4px;font-size:12px;outline:none;">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        </select>
+        条
+      </span>
+    </div>
+
+    {# 示例 #}
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:12px;color:#999;">
+      <i class="fas fa-lightbulb" style="color:#f39c12;"></i> 常见示例：
+      <code style="font-size:11px;background:#f5f5f5;padding:1px 4px;margin:0 2px;">/favicon.ico</code>
+      <code style="font-size:11px;background:#f5f5f5;padding:1px 4px;margin:0 2px;">/robots.txt</code>
+      <code style="font-size:11px;background:#f5f5f5;padding:1px 4px;margin:0 2px;">/.well-known/</code>
+      <code style="font-size:11px;background:#f5f5f5;padding:1px 4px;margin:0 2px;">/api/health/</code>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+var currentPage = 1;
+var pageSize = 10;
+var totalPages = 1;
+
+// ===================================================================
+// 加载
+// ===================================================================
+function loadPaths() {
+  fetch('/xiaoying_admin/spider/logs/api/ignore-paths/', { credentials: 'same-origin' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok) {
+      renderTable(res.paths.filter(function(p) { return p && !p.startsWith('#'); }));
+    }
+  })
+  .catch(function(e) { console.error('加载失败', e); });
+}
+
+// ===================================================================
+// 渲染表格 + 分页
+// ===================================================================
+function renderTable(paths) {
+  var badge = document.getElementById('countBadge');
+  var tbody = document.getElementById('pathTableBody');
+  var pagBar = document.getElementById('paginationBar');
+  var total = paths ? paths.length : 0;
+
+  badge.textContent = '共 ' + total + ' 条';
+
+  if (total === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:30px 0;color:#ccc;">' +
+      '<i class="fas fa-inbox" style="font-size:24px;display:block;margin-bottom:6px;"></i>暂无忽略路径</td></tr>';
+    pagBar.style.display = 'none';
+    return;
+  }
+
+  totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  var start = (currentPage - 1) * pageSize;
+  var end = Math.min(start + pageSize, total);
+  var pageData = paths.slice(start, end);
+
+  tbody.innerHTML = pageData.map(function(p, i) {
+    var idx = start + i + 1;
+    return '<tr>' +
+      '<td style="text-align:center;color:#999;">' + idx + '</td>' +
+      '<td><code style="font-size:12px;background:#f5f5f5;padding:2px 6px;border-radius:2px;font-family:monospace;">' + escHtml(p) + '</code></td>' +
+      '<td style="text-align:center;"><button class="layui-btn layui-btn-xs layui-btn-danger" onclick="removePath(' + (start + i) + ')"><i class="fas fa-trash"></i></button></td>' +
+      '</tr>';
+  }).join('');
+
+  pagBar.style.display = 'flex';
+  document.getElementById('pageInfo').textContent = '第 ' + currentPage + ' / ' + totalPages + ' 页，共 ' + total + ' 条';
+}
+
+// ===================================================================
+// 分页
+// ===================================================================
+function goPage(p) {
+  if (p < 1 || p > totalPages) return;
+  currentPage = p;
+  loadPaths();
+}
+function changePageSize(val) {
+  pageSize = parseInt(val);
+  currentPage = 1;
+  loadPaths();
+}
+
+// ===================================================================
+// 保存到服务器（单条添加/删除都走这个）
+// ===================================================================
+function saveToServer(paths, callback) {
+  fetch('/xiaoying_admin/spider/logs/api/ignore-paths/save/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({paths: paths}),
+    credentials: 'same-origin',
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok) {
+      if (callback) callback();
+      loadPaths();
+    } else {
+      layer.msg(res.error || '保存失败', {icon:2});
+    }
+  })
+  .catch(function(e) { layer.msg('请求失败: ' + e, {icon:2}); });
+}
+
+// ===================================================================
+// 添加（立即保存）
+// ===================================================================
+function addPath() {
+  var input = document.getElementById('newPathInput');
+  var val = input.value.trim();
+  if (!val) { layer.msg('请输入路径前缀', {icon:2}); return; }
+  if (!val.startsWith('/')) { layer.msg('路径需以 / 开头', {icon:2}); return; }
+
+  // 先取当前列表再追加
+  fetch('/xiaoying_admin/spider/logs/api/ignore-paths/', { credentials: 'same-origin' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (!res.ok) { layer.msg('获取列表失败', {icon:2}); return; }
+    var cur = res.paths.filter(function(p) { return p && !p.startsWith('#'); });
+    if (cur.indexOf(val) !== -1) { layer.msg('该路径已存在', {icon:0}); return; }
+    cur.push(val);
+    input.value = '';
+    saveToServer(cur, function() {
+      currentPage = Math.ceil((cur.length) / pageSize);
+      layer.msg('已添加并生效', {icon:1, time:1200});
+    });
+  })
+  .catch(function(e) { layer.msg('请求失败: ' + e, {icon:2}); });
+}
+
+// ===================================================================
+// 删除（立即保存）
+// ===================================================================
+function removePath(index) {
+  if (!confirm('确定移除该路径吗？')) return;
+
+  fetch('/xiaoying_admin/spider/logs/api/ignore-paths/', { credentials: 'same-origin' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (!res.ok) { layer.msg('获取列表失败', {icon:2}); return; }
+    var cur = res.paths.filter(function(p) { return p && !p.startsWith('#'); });
+    cur.splice(index, 1);
+    saveToServer(cur, function() { layer.msg('已移除并生效', {icon:1, time:1200}); });
+  })
+  .catch(function(e) { layer.msg('请求失败: ' + e, {icon:2}); });
+}
+
+// ===================================================================
+// 批量导入弹窗
+// ===================================================================
+function showBatchImport() {
+  var html = [
+    '<div style="padding:16px 18px;">',
+    '<div style="font-size:12px;color:#666;margin-bottom:6px;">',
+    '每行一个路径，支持前缀匹配：</div>',
+    '<textarea id="batchTextarea" class="batch-textarea" placeholder="一行一个路径前缀，例如：',
+'/api/health/',
+'/favicon.ico',
+'/robots.txt',
+'"></textarea>',
+    '<div style="margin-top:10px;text-align:center;">',
+    '<button class="layui-btn" onclick="batchImport()"><i class="fas fa-check"></i> 批量导入</button>',
+    '<button class="layui-btn layui-btn-primary" onclick="layer.closeAll()">取消</button>',
+    '</div></div>',
+  ].join('\n');
+
+  layer.open({
+    type: 1,
+    title: '<i class="fas fa-layer-group"></i> 批量导入路径',
+    area: ['480px', '320px'],
+    shadeClose: true,
+    content: html,
+  });
+}
+
+// ===================================================================
+// 批量导入执行
+// ===================================================================
+function batchImport() {
+  var text = document.getElementById('batchTextarea').value;
+  var lines = text.split('\n')
+    .map(function(l) { return l.trim(); })
+    .filter(function(l) { return l && !l.startsWith('#'); });
+
+  if (lines.length === 0) { layer.msg('未输入有效路径', {icon:2}); return; }
+
+  var invalid = lines.filter(function(l) { return !l.startsWith('/'); });
+  if (invalid.length > 0) {
+    layer.msg('以下路径需以 / 开头：' + invalid.join(', '), {icon:2});
+    return;
+  }
+
+  // 去重
+  var unique = [];
+  var seen = {};
+  lines.forEach(function(l) {
+    if (!seen[l]) { seen[l] = true; unique.push(l); }
+  });
+
+  fetch('/xiaoying_admin/spider/logs/api/ignore-paths/', { credentials: 'same-origin' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (!res.ok) { layer.msg('获取列表失败', {icon:2}); return; }
+    var cur = res.paths.filter(function(p) { return p && !p.startsWith('#'); });
+    var existing = {};
+    cur.forEach(function(p) { existing[p] = true; });
+
+    var added = 0;
+    unique.forEach(function(p) {
+      if (!existing[p]) { cur.push(p); added++; }
+    });
+
+    if (added === 0) { layer.msg('全部路径已存在', {icon:0}); layer.closeAll(); return; }
+
+    saveToServer(cur, function() {
+      currentPage = Math.ceil(cur.length / pageSize);
+      layer.msg('成功导入 ' + added + ' 条', {icon:1});
+      layer.closeAll();
+    });
+  })
+  .catch(function(e) { layer.msg('请求失败: ' + e, {icon:2}); });
+}
+
+// ===================================================================
+// 工具
+// ===================================================================
+function escHtml(s) {
+  return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
+}
+
+// ===================================================================
+// 初始化
+// ===================================================================
+document.addEventListener('DOMContentLoaded', loadPaths);
+</script>
+{% endblock %}

@@ -1,0 +1,571 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}仪表盘 — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+/* ============================
+   首页仪表盘 — Refactored v2
+   ============================ */
+:root {
+  --dash-primary: #1a1a2e;
+  --dash-accent: #e94560;
+  --dash-gold: #f5c518;
+  --card-shadow: 0 1px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04);
+  --card-radius: 10px;
+  --section-gap: 22px;
+}
+
+/* ===== 统计卡片颜色类 ===== */
+.c-blue  { --c: #1E9FFF; }
+.c-green { --c: #2ecc71; }
+.c-purple{ --c: #9b59b6; }
+.c-orange{ --c: #f39c12; }
+.c-teal  { --c: #1abc9c; }
+.c-red   { --c: #e94560; }
+.c-navy  { --c: #0f3460; }
+.c-brown { --c: #8e44ad; }
+.c-mint  { --c: #27ae60; }
+.c-amber { --c: #fa8c16; }
+
+/* ===== 欢迎横幅 ===== */
+.dash-hero {
+  position:relative;
+  background:linear-gradient(135deg,var(--dash-primary) 0%,#0f3460 55%,#16213e 100%);
+  border-radius:var(--card-radius);
+  padding:26px 30px;margin-bottom:var(--section-gap);
+  overflow:hidden;color:#fff;
+}
+.dash-hero::before {
+  content:'';position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;
+}
+.dash-hero-glow {
+  position:absolute;top:-30%;right:-5%;width:500px;height:500px;
+  background:radial-gradient(circle,rgba(233,69,96,0.12) 0%,transparent 70%);
+  border-radius:50%;pointer-events:none;
+}
+.dash-hero-inner {
+  position:relative;z-index:1;
+  display:flex;align-items:center;flex-wrap:wrap;gap:14px;
+  justify-content:space-between;
+}
+.dash-hero-left {
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.dash-hero-avatar {
+  width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,var(--dash-accent),#c0392b);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;
+}
+.dash-hero-text h1 { margin:0 0 2px;font-size:20px;font-weight:600; }
+.dash-hero-text h1 small { font-weight:400;opacity:0.75;font-size:15px;margin-left:6px; }
+.dash-hero-text p { margin:0;opacity:0.65;font-size:13px; }
+.dash-hero-badge { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+.badge-item {
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,0.07);border-radius:6px;
+  padding:5px 12px;font-size:12px;
+}
+.badge-item .num { font-size:17px;font-weight:700;line-height:1; }
+.badge-item .label { opacity:0.65; }
+
+/* ===== 统计卡片网格 ===== */
+.dash-stats {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+  gap:11px;margin-bottom:var(--section-gap);
+}
+.stat-card {
+  background:#fff;border-radius:var(--card-radius);
+  padding:15px 16px 13px;box-shadow:var(--card-shadow);
+  cursor:default;position:relative;overflow:hidden;
+  border:1px solid transparent;
+  transition:border-color .25s,box-shadow .25s,transform .25s;
+}
+.stat-card:hover {
+  border-color:var(--c);box-shadow:0 4px 16px rgba(0,0,0,0.07);
+  transform:translateY(-2px);
+}
+.stat-card .stat-icon {
+  position:absolute;right:10px;top:10px;font-size:24px;opacity:0.08;
+  color:var(--c);transition:opacity .3s;
+}
+.stat-card:hover .stat-icon { opacity:0.15; }
+.stat-card .stat-num { font-size:24px;font-weight:700;line-height:1.2;color:var(--c); }
+.stat-card .stat-label { font-size:12px;color:#888;margin-top:2px; }
+.stat-card .stat-sub { font-size:11px;color:#bbb;margin-top:2px; }
+.stat-card .stat-bar { height:3px;border-radius:2px;margin-top:7px;background:#f0f0f0;overflow:hidden; }
+.stat-card .stat-bar-inner { height:100%;border-radius:2px;background:var(--c);transition:width .8s ease; }
+
+/* ===== 三栏布局 ===== */
+.dash-cols {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:14px;margin-bottom:var(--section-gap);
+}
+@media(max-width:1024px){ .dash-cols{grid-template-columns:1fr 1fr;} }
+@media(max-width:640px){ .dash-cols{grid-template-columns:1fr;} }
+
+.col-card { background:#fff;border-radius:var(--card-radius);box-shadow:var(--card-shadow);overflow:hidden; }
+.col-card-header {
+  padding:11px 15px;border-bottom:1px solid #f2f2f2;
+  font-size:13px;font-weight:600;color:#393D49;
+  display:flex;align-items:center;gap:7px;
+}
+.col-card-body { padding:6px 15px 11px;font-size:13px; }
+
+.safe-row {
+  display:flex;align-items:center;gap:10px;padding:8px 0;
+  border-bottom:1px solid #f8f8f8;
+}
+.safe-row:last-child { border-bottom:none; }
+.safe-dot { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+.safe-label { flex:1;font-size:12px;color:#666; }
+.safe-val { font-weight:600;font-size:12px;color:#393D49; }
+
+.activity-item {
+  display:flex;align-items:flex-start;gap:9px;
+  padding:7px 0;border-bottom:1px solid #f8f8f8;
+}
+.activity-item:last-child { border-bottom:none; }
+.activity-dot {
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:#fff;margin-top:1px;
+}
+.activity-body { flex:1;min-width:0; }
+.activity-body .act-title { font-size:12px;color:#666;line-height:1.4; }
+.activity-body .act-title strong { color:#393D49; }
+.activity-body .act-time { font-size:11px;color:#bbb;margin-top:2px; }
+
+.spider-chips { display:flex;flex-wrap:wrap;gap:5px;padding:7px 0; }
+.spider-chip {
+  font-size:11px;padding:2px 9px;border-radius:10px;
+  background:#f5f5f5;color:#666;border:1px solid #eee;
+}
+.spider-chip em { font-style:normal;font-weight:600;color:#1E9FFF;margin-left:4px; }
+
+/* ===== 功能模块 ===== */
+.section-title {
+  font-size:15px;font-weight:600;color:#393D49;
+  margin:0 0 12px;display:flex;align-items:center;gap:8px;
+}
+.section-title i { color:var(--dash-accent); }
+
+.dash-modules {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:12px;margin-bottom:var(--section-gap);
+}
+.module-card {
+  background:#fff;border-radius:var(--card-radius);
+  padding:16px;box-shadow:var(--card-shadow);
+  text-decoration:none;color:inherit;border:1px solid transparent;
+  transition:border-color .25s,box-shadow .25s,transform .25s;
+  display:flex;align-items:center;gap:13px;position:relative;
+}
+.module-card:hover {
+  border-color:#e0e0e0;box-shadow:0 6px 20px rgba(0,0,0,0.06);
+  transform:translateY(-2px);
+}
+.mc-icon {
+  width:38px;height:38px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#fff;flex-shrink:0;
+}
+.mc-body { flex:1;min-width:0; }
+.mc-body h3 { margin:0 0 2px;font-size:13px;font-weight:600;color:#1a1a2e; }
+.mc-body p { margin:0;font-size:11px;color:#999;line-height:1.5; }
+.mc-arrow {
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  color:#ddd;font-size:12px;transition:all .25s;
+}
+.module-card:hover .mc-arrow { transform:translateY(-50%) translateX(3px);color:var(--dash-accent); }
+
+.mc-icon.blue   { background:linear-gradient(135deg,#1E9FFF,#0b7ad1); }
+.mc-icon.green  { background:linear-gradient(135deg,#2ecc71,#27ae60); }
+.mc-icon.orange { background:linear-gradient(135deg,#f39c12,#e67e22); }
+.mc-icon.red    { background:linear-gradient(135deg,#e74c3c,#c0392b); }
+.mc-icon.purple { background:linear-gradient(135deg,#9b59b6,#8e44ad); }
+.mc-icon.teal   { background:linear-gradient(135deg,#1abc9c,#16a085); }
+.mc-icon.pink   { background:linear-gradient(135deg,#e94560,#c0392b); }
+.mc-icon.grey   { background:linear-gradient(135deg,#636e72,#2d3436); }
+.mc-icon.navy   { background:linear-gradient(135deg,#0f3460,#1a1a2e); }
+.mc-icon.amber  { background:linear-gradient(135deg,#fa8c16,#d46b08); }
+
+/* ===== 系统信息 ===== */
+.dash-footer {
+  background:#fff;border-radius:var(--card-radius);
+  padding:16px 20px;box-shadow:var(--card-shadow);
+}
+.dash-footer-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(185px,1fr));
+  gap:8px;
+}
+.dash-footer-item {
+  display:flex;align-items:center;gap:7px;font-size:12px;color:#666;
+}
+.dash-footer-item i { width:16px;color:#bbb;text-align:center;font-size:12px; }
+.dash-footer-item strong { color:#393D49;margin-right:2px; }
+
+/* ===== 响应式 ===== */
+@media(max-width:768px){
+  .dash-hero{padding:18px 16px;}
+  .dash-stats{grid-template-columns:repeat(2,1fr);}
+  .dash-modules{grid-template-columns:1fr;}
+
+  .dash-hero-badge { margin-top:6px; }
+}
+
+/* ===== 空状态 ===== */
+.empty-state { text-align:center;padding:18px 0;color:#ccc;font-size:13px; }
+.empty-state i { font-size:22px;display:block;margin-bottom:4px; }
+.empty-state p { margin:0; }
+</style>
+{% endblock %}
+
+
+{% block body %}
+<div style="padding:0 2px;">
+
+  {# ========== 欢迎横幅 ========== #}
+  <div class="dash-hero">
+    <div class="dash-hero-glow"></div>
+    <div class="dash-hero-inner">
+      <div class="dash-hero-left">
+        <div class="dash-hero-avatar"><i class="fas fa-user"></i></div>
+        <div class="dash-hero-text">
+          <h1>
+            欢迎回来
+            <small>{{ request.user.get_username|default:'用户' }}</small>
+          </h1>
+          <p>
+            <i class="fas fa-rocket"></i>{{ site_name }} 管理后台
+            {% if request.user.is_superuser %}
+              <i class="fas fa-crown" style="margin-left:8px;color:var(--dash-gold);"></i> 超级管理员
+            {% elif request.user.is_staff %}
+              <i class="fas fa-shield-alt" style="margin-left:8px;color:#1abc9c;"></i> 管理员
+            {% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="dash-hero-badge">
+        <div class="badge-item">
+          <span class="num" style="color:var(--dash-gold);">{{ active_prompts }}</span>
+          <span class="label">生效提示词</span>
+        </div>
+        <div class="badge-item">
+          <span class="num" style="color:#1abc9c;">{{ total_pages }}</span>
+          <span class="label">已生成页面</span>
+        </div>
+        <div class="badge-item">
+          <span class="num" style="color:#2ecc71;">{{ op_log_today }}</span>
+          <span class="label">今日操作</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ========== 统计卡片 ========== #}
+  <div class="dash-stats">
+
+    {# 注册用户 #}
+    <div class="stat-card c-blue">
+      <i class="fas fa-users stat-icon"></i>
+      <div class="stat-num">{{ total_users }}</div>
+      <div class="stat-label">注册用户</div>
+      <div class="stat-sub">{{ active_users }} 活跃 · {{ staff_users }} 管理</div>
+      {% if total_users %}
+      <div class="stat-bar"><div class="stat-bar-inner" style="width:{% widthratio active_users total_users 100 %}%;"></div></div>
+      {% endif %}
+    </div>
+
+    {# 已生成页面 #}
+    <div class="stat-card c-green">
+      <i class="fas fa-file-code stat-icon"></i>
+      <div class="stat-num">{{ total_pages }}</div>
+      <div class="stat-label">已生成页面</div>
+      <div class="stat-sub">AI 智能生成</div>
+    </div>
+
+    {# 提示词库 #}
+    <div class="stat-card c-purple">
+      <i class="fas fa-robot stat-icon"></i>
+      <div class="stat-num">{{ total_prompts }}</div>
+      <div class="stat-label">提示词库</div>
+      <div class="stat-sub">{{ active_prompts }} 条生效</div>
+      {% if total_prompts %}
+      <div class="stat-bar"><div class="stat-bar-inner" style="width:{% widthratio active_prompts total_prompts 100 %}%;"></div></div>
+      {% endif %}
+    </div>
+
+    {# 今日蜘蛛 #}
+    <div class="stat-card c-orange">
+      <i class="fas fa-spider stat-icon"></i>
+      <div class="stat-num">{{ spider_today }}</div>
+      <div class="stat-label">今日蜘蛛访问</div>
+      <div class="stat-sub">累计 {{ spider_total }} 条</div>
+    </div>
+
+    {# 生成任务 #}
+    <div class="stat-card c-teal">
+      <i class="fas fa-tasks stat-icon"></i>
+      <div class="stat-num">{{ total_tasks }}</div>
+      <div class="stat-label">生成任务</div>
+      <div class="stat-sub">失败 {{ failed_tasks }} 个</div>
+    </div>
+
+    {# 今日登录 #}
+    <div class="stat-card c-red">
+      <i class="fas fa-sign-in-alt stat-icon"></i>
+      <div class="stat-num">{{ login_log_today }}</div>
+      <div class="stat-label">今日登录</div>
+      <div class="stat-sub">{{ login_success_today }} 成功 · {{ login_failed_today }} 失败</div>
+      {% if login_success_today or login_failed_today %}
+      <div class="stat-bar"><div class="stat-bar-inner" style="width:{{ login_success_rate }}%;"></div></div>
+      {% endif %}
+    </div>
+
+    {# 防火墙规则 #}
+    <div class="stat-card c-mint">
+      <i class="fas fa-shield-alt stat-icon"></i>
+      <div class="stat-num">{{ firewall_active }}</div>
+      <div class="stat-label">防火墙规则</div>
+      <div class="stat-sub">共 {{ firewall_total }} 条 · {{ firewall_active }} 条生效</div>
+    </div>
+
+    {# 累计登录 #}
+    <div class="stat-card c-brown">
+      <i class="fas fa-history stat-icon"></i>
+      <div class="stat-num">{{ login_total }}</div>
+      <div class="stat-label">累计登录</div>
+      <div class="stat-sub">系统运行以来总登录次数</div>
+    </div>
+
+    {# 多页面项目 #}
+    <div class="stat-card c-navy">
+      <i class="fas fa-layer-group stat-icon"></i>
+      <div class="stat-num">{{ multi_projects_total }}</div>
+      <div class="stat-label">多页面项目</div>
+      <div class="stat-sub">{{ multi_projects_completed }} 已完成 · {{ multi_projects_enabled }} 已启用</div>
+      {% if multi_projects_total %}
+      <div class="stat-bar"><div class="stat-bar-inner" style="width:{% widthratio multi_projects_completed multi_projects_total 100 %}%;"></div></div>
+      {% endif %}
+    </div>
+
+    {# SEO 域名 #}
+    <div class="stat-card c-amber">
+      <i class="fas fa-globe-asia stat-icon"></i>
+      <div class="stat-num">{{ seo_domains_total }}</div>
+      <div class="stat-label">SEO 域名追踪</div>
+      <div class="stat-sub">快排手段时间线记录</div>
+    </div>
+
+  </div>
+
+  {# ========== 三栏：安全·动态·活跃蜘蛛 ========== #}
+  <div class="dash-cols">
+
+    {# 安全状态 #}
+    <div class="col-card" data-delay>
+      <div class="col-card-header"><i class="fas fa-shield-alt" style="color:#27ae60;"></i> 安全状态</div>
+      <div class="col-card-body">
+        <div class="safe-row">
+          <span class="safe-dot" style="background:{% if firewall_active > 0 %}#2ecc71{% else %}#bbb{% endif %};"></span>
+          <span class="safe-label">防火墙</span><span class="safe-val">{{ firewall_active }} 条生效</span>
+        </div>
+        <div class="safe-row">
+          <span class="safe-dot" style="background:{% if login_failed_today == 0 %}#2ecc71{% elif login_failed_today < 5 %}#f39c12{% else %}#e74c3c{% endif %};"></span>
+          <span class="safe-label">今日登录失败</span><span class="safe-val">{{ login_failed_today }} 次</span>
+        </div>
+        <div class="safe-row">
+          <span class="safe-dot" style="background:#1E9FFF;"></span>
+          <span class="safe-label">今日登录成功</span><span class="safe-val">{{ login_success_today }} 次</span>
+        </div>
+        <div class="safe-row">
+          <span class="safe-dot" style="background:{% if login_success_rate >= 80 %}#2ecc71{% else %}#f39c12{% endif %};"></span>
+          <span class="safe-label">登录成功率</span><span class="safe-val">{{ login_success_rate }}%</span>
+        </div>
+        <div class="safe-row">
+          <span class="safe-dot" style="background:#636e72;"></span>
+          <span class="safe-label">蜘蛛管理</span><span class="safe-val">{{ spider_today }} 次/今日</span>
+        </div>
+      </div>
+    </div>
+
+    {# 最近动态 #}
+    <div class="col-card" data-delay>
+      <div class="col-card-header">
+        <i class="fas fa-bolt" style="color:var(--dash-accent);"></i> 最近动态
+        <a href="/xiaoying_admin/operation_logs/" style="margin-left:auto;font-size:11px;color:#1E9FFF;text-decoration:none;">查看全部 <i class="fas fa-chevron-right" style="font-size:9px;"></i></a>
+      </div>
+      <div class="col-card-body">
+        {% if recent_ops %}
+          {% for op in recent_ops %}
+          <div class="activity-item">
+            <div class="activity-dot" style="background:{% if op.action == 'create' %}#2ecc71{% elif op.action == 'update' %}#1E9FFF{% elif op.action == 'delete' %}#e74c3c{% else %}#999{% endif %};">
+              <i class="fas fa-{% if op.action == 'create' %}plus{% elif op.action == 'update' %}pencil-alt{% elif op.action == 'delete' %}trash{% else %}circle{% endif %}"></i>
+            </div>
+            <div class="activity-body">
+              <div class="act-title"><strong>{{ op.username }}</strong> {{ op.target_repr|default:op.target_type }}</div>
+              <div class="act-time"><i class="far fa-clock"></i> {{ op.created_at|date:'Y-m-d H:i' }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state"><i class="fas fa-inbox"></i><p>暂无操作记录</p></div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# 今日活跃蜘蛛 #}
+    <div class="col-card" data-delay>
+      <div class="col-card-header">
+        <i class="fas fa-spider" style="color:#f39c12;"></i> 今日活跃蜘蛛
+        <a href="/xiaoying_admin/spider/logs/analytics/" style="margin-left:auto;font-size:11px;color:#1E9FFF;text-decoration:none;">分析 <i class="fas fa-chevron-right" style="font-size:9px;"></i></a>
+      </div>
+      <div class="col-card-body">
+        {% if active_spiders_today %}
+        <div class="spider-chips">
+          {% for s in active_spiders_today %}
+          <span class="spider-chip">{{ s.spider_name }} <em>{{ s.count }}</em></span>
+          {% endfor %}
+        </div>
+        <div style="font-size:11px;color:#bbb;padding-top:4px;border-top:1px solid #f5f5f5;">
+          <i class="fas fa-info-circle"></i> 今日共检测到 <strong style="color:#f39c12;">{{ active_spiders_today|length }}</strong> 种爬虫
+        </div>
+        {% else %}
+        <div class="empty-state"><i class="fas fa-spider"></i><p>今日暂无爬虫访问</p></div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  {# ========== 功能模块 ========== #}
+  <div class="section-title"><i class="fas fa-th-large"></i> 功能模块</div>
+  <div class="dash-modules">
+    <a class="module-card" href="/xiaoying_admin/pages/generate/">
+      <div class="mc-icon blue"><i class="fas fa-magic"></i></div>
+      <div class="mc-body"><h3>AI 页面生成</h3><p>输入需求描述，AI 自动生成高质量落地页 HTML</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/pages/list/">
+      <div class="mc-icon green"><i class="fas fa-folder-open"></i></div>
+      <div class="mc-body"><h3>已保存页面</h3><p>管理所有 AI 生成的页面，支持域名绑定和内容编辑</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/multi-page/">
+      <div class="mc-icon navy"><i class="fas fa-layer-group"></i></div>
+      <div class="mc-body"><h3>多页面管理</h3><p>AI 批量生成整站页面，导航栏管理、实时编辑预览</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/seo/cloak/">
+      <div class="mc-icon red"><i class="fas fa-user-secret"></i></div>
+      <div class="mc-body"><h3>爬虫斗篷伪装</h3><p>智能识别爬虫与真人，差异化内容分发与多种策略</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/seo/domain-records/">
+      <div class="mc-icon amber"><i class="fas fa-globe-asia"></i></div>
+      <div class="mc-body"><h3>域名SEO记录</h3><p>追踪域名快排手段时间线，自定义记录每日 SEO 操作</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/spider/logs/">
+      <div class="mc-icon purple"><i class="fas fa-chart-line"></i></div>
+      <div class="mc-body"><h3>蜘蛛访问日志</h3><p>实时记录爬虫与真人访问，可视化时段分布与统计</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/firewall/">
+      <div class="mc-icon red"><i class="fas fa-shield-virus"></i></div>
+      <div class="mc-body"><h3>防火墙管理</h3><p>IP/页面黑名单规则，自定义拦截响应，命中统计</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/users/">
+      <div class="mc-icon teal"><i class="fas fa-user-cog"></i></div>
+      <div class="mc-body"><h3>用户管理</h3><p>创建、编辑、权限分配、启用/禁用，分组管理</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/operation_logs/">
+      <div class="mc-icon pink"><i class="fas fa-clipboard-list"></i></div>
+      <div class="mc-body"><h3>操作审计日志</h3><p>完整记录后台操作，字段级变更追踪</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/login_logs/">
+      <div class="mc-icon grey"><i class="fas fa-sign-in-alt"></i></div>
+      <div class="mc-body"><h3>登录安全日志</h3><p>监控登录尝试，记录 IP、UA、成功/失败状态</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/site_settings/">
+      <div class="mc-icon orange"><i class="fas fa-cog"></i></div>
+      <div class="mc-body"><h3>网站设置</h3><p>全局统计代码、用户注册开关、站点基础信息</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+    <a class="module-card" href="/xiaoying_admin/static-file/">
+      <div class="mc-icon teal"><i class="fas fa-file-alt"></i></div>
+      <div class="mc-body"><h3>静态文件路由</h3><p>白名单路径→根目录文件映射，安全对外暴露静态资源</p></div>
+      <i class="fas fa-chevron-right mc-arrow"></i>
+    </a>
+  </div>
+
+  {# ========== 系统信息 ========== #}
+  <div class="section-title"><i class="fas fa-info-circle"></i> 系统信息</div>
+  <div class="dash-footer">
+    <div class="dash-footer-grid">
+      <div class="dash-footer-item"><i class="fas fa-tag"></i><span><strong>系统名称</strong> {{ site_name }}</span></div>
+      <div class="dash-footer-item"><i class="fas fa-globe"></i><span><strong>站点域名</strong> {{ site_domain }}</span></div>
+      <div class="dash-footer-item"><i class="fas fa-code-branch"></i><span><strong>系统版本</strong> {{ version|default:'1.0.0' }}</span></div>
+      <div class="dash-footer-item"><i class="fas fa-database"></i><span><strong>数据引擎</strong> {{ db_engine|default:'SQLite' }}</span></div>
+      <div class="dash-footer-item"><i class="fas fa-python"></i><span><strong>后端框架</strong> Django</span></div>
+      <div class="dash-footer-item"><i class="fas fa-robot"></i><span><strong>AI 引擎</strong> DeepSeek</span></div>
+      <div class="dash-footer-item"><i class="fas fa-user"></i><span><strong>当前用户</strong> {{ request.user.get_username }}</span></div>
+      <div class="dash-footer-item"><i class="fas fa-calendar"></i><span><strong>服务器时间</strong> <span id="serverTime"></span></span></div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:14px 0 2px;font-size:12px;color:#ccc;">
+    <i class="fas fa-heart" style="color:var(--dash-accent);"></i>
+    Powered by {{ site_name }} · 用心做好每一个站点
+  </div>
+</div>
+{% endblock %}
+
+
+{% block js %}
+<script>
+(function(){
+  // 数字递增动画
+  function animateCounters() {
+    document.querySelectorAll('.stat-card .stat-num').forEach(function(el){
+      var n = parseInt(el.textContent.replace(/,/g,''),10);
+      if(isNaN(n)||n===0){el.style.opacity='1';return;}
+      var dur=Math.min(700,200+n*6),start=null,a=function(t){
+        if(!start)start=t;
+        var p=Math.min((t-start)/dur,1),e=1-Math.pow(1-p,3);
+        el.textContent=Math.round(e*n).toLocaleString();
+        if(p<1) requestAnimationFrame(a);
+        else el.textContent=n.toLocaleString();
+      };
+      requestAnimationFrame(a);
+    });
+  }
+
+  // 服务器时钟
+  !function t(){var e=document.getElementById('serverTime');if(e){var d=new Date();e.textContent=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}setTimeout(t,1e3)}();
+
+  // 入场动画
+  document.querySelectorAll('.stat-card, .module-card, .col-card[data-delay]').forEach(function(el,i){
+    el.style.opacity='0';el.style.transform='translateY(10px)';
+    el.style.transition='opacity .45s ease,transform .45s ease';
+    setTimeout(function(){el.style.opacity='1';el.style.transform='translateY(0)';},70+i*50);
+  });
+
+  setTimeout(animateCounters,200);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}小影CMS管理系统{% endblock %}</title>
+
+    <link rel="icon" type="image/svg+xml" href="/media/images/logo.svg">
+    {# ===== SEO 标签（由 layout_context_processor 注入） ===== #}
+    {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+    <meta property="og:site_name" content="{{ site_name }}">
+    <meta property="og:type" content="website">
+    {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+
+    {# ===== 样式：LayUI + FontAwesome（本地化，避免国内访问 CDN 慢） ===== #}
+    <link rel="stylesheet" href="{% static 'vendor/layui/css/layui.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+    {% if show_sidebar %}<link rel="stylesheet" href="{% static 'left-menu/left-menu.css' %}">{% endif %}
+    {% if show_sidebar %}<link rel="stylesheet" href="{% static 'tabs/tabs.css' %}">{% endif %}
+
+    {# ===== 母版布局：侧边栏 + 主内容区横向排列 ===== #}
+    <style>
+        html, body { height: 100%; margin: 0; }
+        body { display: flex; min-height: 100vh; }
+        .main-content { flex: 1; padding: 15px; overflow-x: hidden; }
+    </style>
+
+    {% block head %}{% endblock %}
+
+    {# ===== JS：LayUI（本地化，必须在 body 之前加载供子组件脚本使用） ===== #}
+    <script src="{% static 'vendor/layui/js/layui.min.js' %}"></script>
+</head>
+
+<body>
+    {# ===== 全局共享 JS 工具函数 ===== #}
+    <script>
+    /* 全项目共用的 HTML 转义与剪贴板工具 */
+    function escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+    function escAttr(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+    function copyClip(text, msg) {
+        msg = msg || '已复制';
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function(){ if(window.layer) layer.msg(msg,{icon:1}); });
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); if(window.layer) layer.msg(msg,{icon:1}); } catch(e) {}
+            document.body.removeChild(ta);
+        }
+    }
+    </script>
+
+    {# ===== 侧边栏（条件渲染，视图可设 request.show_sidebar = False 关闭） ===== #}
+    {% if show_sidebar %}
+    <div class="sidebar-wrapper">
+        {% include 'XiaoYingAdmin/左侧菜单/左侧菜单.html' %}
+    </div>
+    {% endif %}
+
+    {# ===== 主内容区 ===== #}
+    <div class="main-content">
+        {% include 'XiaoYingAdmin/子组件/全局通用头部组件.html' %}
+        {% if show_sidebar %}<div id="navTabsBar" class="nav-tabs-bar"></div>{% endif %}
+        {% block body %}{% endblock %}
+    </div>
+
+    {# ===== JS：侧边栏菜单高亮（浏览器端按 URL 匹配） ===== #}
+    {% if show_sidebar %}
+    <script>
+    (function () {
+        var currentPath = window.location.pathname;
+        var menu = document.getElementById('sidebar-menu');
+        if (!menu) return;
+
+        // 遍历所有 <a href>，查找与当前 URL 完全匹配的菜单项
+        var links = menu.querySelectorAll('a[href]');
+        var matched = null;
+        for (var i = 0; i < links.length; i++) {
+            if (links[i].getAttribute('href') === currentPath) {
+                matched = links[i];
+                break;
+            }
+        }
+
+        if (matched) {
+            // 高亮当前匹配的菜单项：子菜单在 <dd> 内，layui-this 加在 <dd> 上；
+            // 一级菜单直接加在 .layui-nav-item 上
+            var dd = matched.closest('dd');
+            var item = matched.closest('.layui-nav-item');
+            if (dd) {
+                dd.classList.add('layui-this');
+            } else if (item) {
+                item.classList.add('layui-this');
+            }
+
+            // 递归展开所有祖先父级菜单（使子菜单可见）
+            var node = matched.parentElement;
+            while (node && node !== menu) {
+                if (node.classList && node.classList.contains('layui-nav-item')) {
+                    node.classList.add('layui-nav-itemed');
+                }
+                node = node.parentElement;
+            }
+        }
+    })();
+    </script>
+    {% endif %}
+
+    {% block js %}{% endblock %}
+
+    {# ===== 顶部标签页导航栏（纯前端，localStorage 持久化） ===== #}
+    {% if show_sidebar %}<script src="{% static 'tabs/tabs.js' %}"></script>{% endif %}
+
+    {% comment %}
+    固定条（返回顶部）：滚动超过 200px 自动显示在右下角，点击平滑回到顶部。
+    参考：https://layui.dev/docs/2/fixbar/ （util.fixbar）
+    {% endcomment %}
+    <script>
+    layui.use(['util'], function() {
+        var util = layui.util;
+        // 项目滚动容器是 .main-content（不是 window），需把 DOM 元素传给 fixbar
+        var mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            util.fixbar({
+                target: mainContent,
+                scroll: mainContent,
+                bgcolor: '#5FB878',
+                default: true,         // 显示默认的 TOP（返回顶部）按钮
+                css: {right: 20, bottom: 20},
+                margin: 200,           // 滚动超过 200px 才显示
+                duration: 300          // 滚动动画时长（毫秒）
+            });
+        }
+    });
+    </script>
+</body>
+
+</html>

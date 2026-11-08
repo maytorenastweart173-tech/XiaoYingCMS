@@ -1,0 +1,30 @@
+{% for item in menu_items %}
+    {% if item.children %}
+        {# ==== 有子菜单：可展开的父级菜单 ==== #}
+        {% if is_child %}<dd class="layui-nav-item">
+        {% else %}<li class="layui-nav-item">
+        {% endif %}
+            <a href="javascript:;">
+                {% if item.icon %}<i class="{{ item.icon }}"></i>{% endif %}
+                {{ item.name }}
+            </a>
+            <dl class="layui-nav-child">
+                {% include 'XiaoYingAdmin/左侧菜单/左侧菜单_项.html' with menu_items=item.children is_child=True %}
+            </dl>
+        {% if is_child %}</dd>{% else %}</li>{% endif %}
+    {% else %}
+        {# ==== 无子菜单：叶子菜单项 ==== #}
+        {% if is_child %}<dd>
+        {% else %}<li class="layui-nav-item">
+        {% endif %}
+            <a href="{{ item.url }}">
+                {% if item.icon %}<i class="{{ item.icon }}"></i>{% endif %}
+                {{ item.name }}
+            </a>
+        {% if is_child %}</dd>{% else %}</li>{% endif %}
+    {% endif %}
+{% empty %}
+    {% if not is_child %}
+        <li class="layui-nav-item sidebar-empty"><span>暂无菜单</span></li>
+    {% endif %}
+{% endfor %}

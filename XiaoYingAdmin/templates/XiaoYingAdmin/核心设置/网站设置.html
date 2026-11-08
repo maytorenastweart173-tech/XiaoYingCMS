@@ -1,0 +1,276 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+
+{% block title %}网站设置{% endblock %}
+{% block head %}{% endblock %}
+{% block body %}
+
+{% include 'XiaoYingAdmin/核心设置/子组件/网站设置/全局代码统计.html' %}
+
+{# 搜索引擎配置 #}
+<div class="site-section" style="margin-top:20px;">
+    <div class="site-section-header">
+        <h3>搜索引擎配置</h3>
+        <span class="section-desc">配置可用的搜索引擎列表，用于单页面管理中的域名收录状态标记</span>
+    </div>
+    <div class="site-section-body">
+        <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="newEngineInput" class="layui-input" placeholder="输入搜索引擎名称" style="width:200px;">
+            <button class="layui-btn layui-btn-sm" id="addEngineBtn"><i class="fas fa-plus"></i> 添加</button>
+            <button class="layui-btn layui-btn-sm layui-btn-primary" id="saveEnginesBtn"><i class="fas fa-save"></i> 保存</button>
+        </div>
+        <div id="engineList" style="display:flex;gap:8px;flex-wrap:wrap;min-height:36px;padding:8px;background:#fafafa;border-radius:4px;border:1px solid #f0f0f0;">
+            <span style="color:#bbb;font-size:13px;" id="engineEmptyHint">暂无搜索引擎，请在上方添加</span>
+        </div>
+        <p style="font-size:11px;color:#999;margin-top:6px;">
+            <i class="fas fa-info-circle"></i> 添加后保存在数据库中，用于页面列表的域名收录状态标记
+        </p>
+    </div>
+</div>
+
+{# DeepSeek AI 配置 #}
+<div class="site-section" style="margin-top:20px;">
+    <div class="site-section-header">
+        <h3>DeepSeek AI 配置</h3>
+        <span class="section-desc">用于 AI 页面生成、整站生成与 SEO 优化，直接调用 DeepSeek 官方 API</span>
+    </div>
+    <div class="site-section-body">
+        <form class="layui-form" method="post" action="">
+            {% csrf_token %}
+            <div class="layui-form-item">
+                <label class="layui-form-label" style="width:180px;">API Key</label>
+                <div class="layui-input-block" style="margin-left:180px;max-width:640px;">
+                    <input type="text" name="deepseek_api_key" class="layui-input"
+                           value="{{ site_settings.deepseek_api_key }}" placeholder="sk-...">
+                    <div class="layui-form-mid layui-word-aux">
+                        <i class="fas fa-info-circle"></i> 在 platform.deepseek.com 获取；未填写时 AI 生成会提示配置 Key
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label" style="width:180px;">思考模式</label>
+                <div class="layui-input-block" style="margin-left:180px;">
+                    <input type="hidden" name="deepseek_thinking_enabled" value="off">
+                    <input type="checkbox" name="deepseek_thinking_enabled" lay-skin="switch"
+                           lay-text="开启|关闭" value="on"
+                           {% if site_settings.deepseek_thinking_enabled %}checked{% endif %}>
+                    <div class="layui-form-mid layui-word-aux">
+                        <i class="fas fa-info-circle"></i> 开启后先深度思考再生成正文，页面质量更高，但速度更慢、消耗更多 token
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block" style="margin-left:180px;">
+                    <button class="layui-btn" lay-submit>保存配置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# 备份配置 #}
+<div class="site-section" style="margin-top:20px;">
+    <div class="site-section-header">
+        <h3>自动备份配置</h3>
+        <span class="section-desc">设置日志自动备份阈值，达到数量后自动备份并清空数据库（0=关闭自动备份）</span>
+    </div>
+    <div class="site-section-body">
+        <form class="layui-form" method="post" action="">
+            {% csrf_token %}
+            <div class="layui-form-item">
+                <label class="layui-form-label" style="width:180px;">蜘蛛日志备份阈值</label>
+                <div class="layui-input-inline" style="width:120px;">
+                    <input type="number" name="auto_backup_spider_threshold"
+                           class="layui-input" min="0" step="1000"
+                           value="{{ site_settings.auto_backup_spider_threshold|default:0 }}">
+                </div>
+                <div class="layui-form-mid layui-word-aux">条</div>
+                <div style="font-size:12px; color:#999; margin-left:10px; line-height:38px;">
+                    <i class="fas fa-info-circle"></i> 当前日志：<strong>{{ spider_total }}</strong> 条
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label" style="width:180px;">操作日志备份阈值</label>
+                <div class="layui-input-inline" style="width:120px;">
+                    <input type="number" name="auto_backup_operation_threshold"
+                           class="layui-input" min="0" step="1000"
+                           value="{{ site_settings.auto_backup_operation_threshold|default:0 }}">
+                </div>
+                <div class="layui-form-mid layui-word-aux">条</div>
+                <div style="font-size:12px; color:#999; margin-left:10px; line-height:38px;">
+                    <i class="fas fa-info-circle"></i> 备份目录：<code style="background:#f6f6f6; padding:1px 6px; border-radius:3px;">{{ backup_dir }}</code>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block" style="margin-left:180px;">
+                    <button class="layui-btn" lay-submit>保存配置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# 登录安全配置 #}
+<div class="site-section" style="margin-top:20px;">
+    <div class="site-section-header">
+        <h3>登录安全配置</h3>
+        <span class="section-desc">配置登录失败封禁策略、IP 白名单和后台域名白名单</span>
+    </div>
+    <div class="site-section-body">
+        <form class="layui-form" method="post" action="">
+            {% csrf_token %}
+            <div class="layui-form-item">
+                <label class="layui-form-label" style="width:180px;">最大登录失败次数</label>
+                <div class="layui-input-inline" style="width:120px;">
+                    <input type="number" name="max_login_attempts"
+                           class="layui-input" min="0" step="1"
+                           value="{{ site_settings.max_login_attempts|default:0 }}">
+                </div>
+                <div class="layui-form-mid layui-word-aux">次（0=不限制）</div>
+                <div style="font-size:12px; color:#999; margin-left:10px; line-height:38px;">
+                    <i class="fas fa-info-circle"></i> 同一 IP 24小时内连续登录失败超过此值将自动加入防火墙黑名单
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label" style="width:180px;">登录 IP 白名单</label>
+                <div class="layui-input-block" style="margin-left:180px;">
+                    <textarea name="login_ip_whitelist" class="layui-textarea"
+                              style="min-height:100px;font-family:monospace;"
+                              placeholder="每行一个 IP，例如：&#10;192.168.1.1&#10;10.0.0.1&#10;127.0.0.1">{{ site_settings.login_ip_whitelist }}</textarea>
+                    <div style="font-size:12px;color:#999;margin-top:4px;">
+                        <i class="fas fa-info-circle"></i> 只允许列表中的 IP 访问登录页和后台，每行一个 IP。留空则不限制
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label" style="width:180px;">后台域名白名单</label>
+                <div class="layui-input-block" style="margin-left:180px;">
+                    <textarea name="allowed_admin_domains" class="layui-textarea"
+                              style="min-height:100px;font-family:monospace;"
+                              placeholder="每行一个域名，例如：&#10;admin.xiaoyingclub.com&#10;xiaoyingclub.com&#10;*.xiaoyingclub.com">{{ site_settings.allowed_admin_domains }}</textarea>
+                    <div style="font-size:12px;color:#999;margin-top:4px;">
+                        <i class="fas fa-info-circle"></i>
+                        只允许通过指定域名访问后台，每行一个域名。支持通配符 <code>*.example.com</code>。
+                        留空则不限制。配置后请确保当前域名在白名单中，否则会被锁定！
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block" style="margin-left:180px;">
+                    <button class="layui-btn" lay-submit>保存配置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# 用户系统配置 #}
+<div class="site-section" style="margin-top:20px;">
+    <div class="site-section-header">
+        <h3>用户系统配置</h3>
+        <span class="section-desc">管理用户注册、登录相关功能</span>
+    </div>
+    <div class="site-section-body">
+        <form class="layui-form" method="post" action="">
+            {% csrf_token %}
+            <div class="layui-form-item">
+                <div class="layui-input-block site-switch-row">
+                    <input type="checkbox" name="registration_enabled" lay-skin="switch" lay-text="开启|关闭" lay-filter="regSwitch"
+                           {% if user_config.registration_enabled %}checked{% endif %}>
+                    <span class="site-switch-desc"><i class="fas fa-info-circle"></i> 开启后，用户可通过登录页的"注册新账号"链接自行注册</span>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block">
+                    <button class="layui-btn" lay-submit lay-filter="userConfigSubmit">保存配置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+{% block js %}
+
+<script>
+layui.use(['form', 'layer'], function() {
+    var form = layui.form, layer = layui.layer;
+    form.render();
+
+    form.on('submit(userConfigSubmit)', function(data) {
+        return true;
+    });
+
+    // ===== 搜索引擎配置 =====
+    var engines = [];
+
+    function loadEngines() {
+        fetch('/xiaoying_admin/api/site-settings/search-engines/')
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                engines = resp.data || [];
+                renderEngines();
+            });
+    }
+
+    function renderEngines() {
+        var el = document.getElementById('engineList');
+        var hint = document.getElementById('engineEmptyHint');
+        if (!engines.length) {
+            el.innerHTML = '<span style="color:#bbb;font-size:13px;" id="engineEmptyHint">暂无搜索引擎，请在上方添加</span>';
+            return;
+        }
+        var html = '';
+        engines.forEach(function(e, i) {
+            html += '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#e8f5e9;color:#2e7d32;border-radius:4px;font-size:13px;">';
+            html += '<span>' + escHtml(e) + '</span>';
+            html += '<i class="fas fa-times" style="cursor:pointer;opacity:.5;font-size:11px;" onclick="removeEngine(' + i + ')"></i>';
+            html += '</span>';
+        });
+        el.innerHTML = html;
+    }
+
+    window.removeEngine = function(idx) {
+        engines.splice(idx, 1);
+        renderEngines();
+    };
+
+    document.getElementById('addEngineBtn').addEventListener('click', function() {
+        var input = document.getElementById('newEngineInput');
+        var val = input.value.trim();
+        if (!val) { layer.msg('请输入搜索引擎名称', {icon:5}); return; }
+        if (engines.indexOf(val) !== -1) { layer.msg('该引擎已存在', {icon:5}); return; }
+        engines.push(val);
+        renderEngines();
+        input.value = '';
+    });
+
+    document.getElementById('newEngineInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('addEngineBtn').click();
+    });
+
+    document.getElementById('saveEnginesBtn').addEventListener('click', function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        fetch('/xiaoying_admin/api/site-settings/search-engines/save/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ search_engines: engines }),
+        }).then(function(r) { return r.json(); }).then(function(resp) {
+            if (resp.code === 0) {
+                layer.msg('保存成功', {icon:1, time:1000});
+            } else {
+                layer.msg(resp.message || '保存失败', {icon:5});
+            }
+        }).catch(function() {
+            layer.msg('保存失败', {icon:5});
+        }).finally(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> 保存';
+        });
+    });
+
+    loadEngines();
+});
+</script>
+{% endblock %}

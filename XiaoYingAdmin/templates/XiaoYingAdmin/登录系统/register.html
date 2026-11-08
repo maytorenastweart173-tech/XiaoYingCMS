@@ -1,0 +1,290 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 — {{ site_name }}</title>
+    <link rel="stylesheet" href="{% static 'vendor/layui/css/layui.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 60%),
+                        radial-gradient(circle at 70% 60%, rgba(100,180,255,0.04) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .register-container {
+            width: 420px;
+            max-width: 92vw;
+            position: relative;
+            z-index: 1;
+        }
+        .register-brand {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .register-brand .brand-icon {
+            width: 56px; height: 56px;
+            background: linear-gradient(135deg, #5FB878, #3A9E6D);
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            margin-bottom: 10px;
+            box-shadow: 0 8px 24px rgba(95, 184, 120, 0.3);
+        }
+        .register-brand h1 {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .register-brand p {
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .register-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 32px 28px 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .register-card h2 {
+            font-size: 16px;
+            color: #393D49;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+        }
+        .register-card h2 i { margin-right: 6px; color: #5FB878; }
+
+        .reg-field {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .reg-field .field-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #bbb;
+            font-size: 14px;
+            z-index: 2;
+            transition: color 0.2s;
+        }
+        .reg-field .field-icon.active { color: #5FB878; }
+        .reg-field input {
+            width: 100%;
+            height: 42px;
+            padding: 0 14px 0 40px;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #393D49;
+            background: #fafafa;
+            outline: none;
+            transition: all 0.25s;
+        }
+        .reg-field input:focus {
+            border-color: #5FB878;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(95, 184, 120, 0.12);
+        }
+        .reg-field input::placeholder { color: #bbb; }
+
+        .reg-error {
+            background: #fff5f5;
+            border: 1px solid #ffe0e0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            color: #e54d4d;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .reg-btn {
+            width: 100%;
+            height: 42px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #5FB878, #3A9E6D);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s;
+            box-shadow: 0 4px 14px rgba(95, 184, 120, 0.35);
+            letter-spacing: 0.5px;
+        }
+        .reg-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(95, 184, 120, 0.45);
+        }
+        .reg-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .reg-btn.loading {
+            pointer-events: none;
+            position: relative;
+        }
+        .reg-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            right: 24px;
+            top: 50%;
+            margin-top: -9px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .reg-footer {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 13px;
+        }
+        .reg-footer a {
+            color: #5FB878;
+            text-decoration: none;
+        }
+        .reg-footer a:hover { text-decoration: underline; }
+
+        .reg-footer-bottom {
+            text-align: center;
+            margin-top: 18px;
+            color: rgba(255,255,255,0.35);
+            font-size: 12px;
+        }
+
+        .reg-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+            padding-left: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-brand">
+            <div class="brand-icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <h1>{{ site_name }}</h1>
+            <p>创建管理员账号</p>
+        </div>
+
+        <div class="register-card">
+            <h2><i class="fas fa-edit"></i> 注册新账号</h2>
+
+            {% if error %}
+            <div class="reg-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            {% if not registration_enabled %}
+            <div style="text-align:center;padding:20px 0;color:#999;">
+                <i class="fas fa-info-circle" style="font-size:32px;color:#5FB878;display:block;margin-bottom:10px;"></i>
+                管理员已关闭注册功能<br>
+                <div style="margin-top:16px;">
+                    <a href="{% url 'login' %}" style="color:#5FB878;">返回登录</a>
+                </div>
+            </div>
+            {% else %}
+            <form method="post" id="register-form" autocomplete="off">
+                {% csrf_token %}
+
+                <div class="reg-field">
+                    <i class="fas fa-user field-icon" id="icon-user"></i>
+                    <input type="text" name="username" id="username"
+                           placeholder="用户名（至少 3 个字符）" required autofocus
+                           value="{{ request.POST.username|default:'' }}">
+                </div>
+
+                <div class="reg-field">
+                    <i class="fas fa-envelope field-icon" id="icon-email"></i>
+                    <input type="email" name="email" id="email"
+                           placeholder="邮箱（可选，用于找回密码）"
+                           value="{{ request.POST.email|default:'' }}">
+                </div>
+
+                <div class="reg-field">
+                    <i class="fas fa-lock field-icon" id="icon-pass"></i>
+                    <input type="password" name="password" id="password"
+                           placeholder="密码（至少 6 位）" required>
+                </div>
+
+                <div class="reg-field">
+                    <i class="fas fa-check-circle field-icon" id="icon-pass2"></i>
+                    <input type="password" name="password2" id="password2"
+                           placeholder="确认密码" required>
+                </div>
+
+                <button type="submit" class="reg-btn" id="reg-btn">
+                    <i class="fas fa-user-plus"></i> 注 册
+                </button>
+            </form>
+
+            <div class="reg-footer">
+                已有账号？<a href="{% url 'login' %}">返回登录</a>
+                &nbsp;|&nbsp;
+                <a href="{% url 'forgot_password' %}">忘记密码？</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="reg-footer-bottom">
+            &copy; {{ site_name }} &middot; {{ version }}
+        </div>
+    </div>
+
+    <script src="{% static 'vendor/layui/layui.js' %}"></script>
+    <script>
+    (function () {
+        var form = document.getElementById('register-form');
+        if (!form) return;
+        var btn = document.getElementById('reg-btn');
+
+        function toggleIcon(inputId, iconId) {
+            var input = document.getElementById(inputId);
+            var icon = document.getElementById(iconId);
+            if (!input || !icon) return;
+            input.addEventListener('focus', function () { icon.classList.add('active'); });
+            input.addEventListener('blur', function () { icon.classList.remove('active'); });
+        }
+        toggleIcon('username', 'icon-user');
+        toggleIcon('email', 'icon-email');
+        toggleIcon('password', 'icon-pass');
+        toggleIcon('password2', 'icon-pass2');
+
+        form.addEventListener('submit', function () {
+            btn.disabled = true;
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 注册中…';
+        });
+    })();
+    </script>
+</body>
+</html>

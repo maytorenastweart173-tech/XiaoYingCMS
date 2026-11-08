@@ -1,0 +1,152 @@
+<script>
+// ============================================================
+// 页面列表 — 分类搜索选择器组件
+// 依赖：全局变量 categories（分类列表）
+// 依赖：全局函数 escHtml()
+// ============================================================
+
+// ---- 分类搜索选择器组件 ----
+
+function buildCategorySelector() {
+    var html = '<div class="cat-sel-wrap" id="catSelectorWrap" data-selected="">';
+    html += '<div class="cat-sel-bar" id="catSelBar">';
+    html += '<span class="cat-sel-placeholder" id="catSelPlaceholder">选择分类</span>';
+    html += '<span class="cat-sel-count" id="catSelCount" style="display:none;">0</span>';
+    html += '<span class="cat-sel-arrow"><i class="fas fa-chevron-down"></i></span>';
+    html += '</div>';
+    html += '<div class="cat-sel-tags" id="catSelTags"></div>';
+    html += '<div class="cat-sel-dropdown" id="catSelDropdown">';
+    html += '<div class="cat-sel-search"><i class="fas fa-search"></i><input type="text" id="catSelSearch" placeholder="搜索分类..."></div>';
+    html += '<div class="cat-sel-list" id="catSelList"></div>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
+function initCategorySelector(layero, initialSelected) {
+    var wrap = layero.find('#catSelectorWrap');
+    if (!wrap.length) return;
+    var wrapEl = wrap[0];
+    var bar = layero.find('#catSelBar')[0];
+    var dropdown = layero.find('#catSelDropdown')[0];
+    var searchInput = layero.find('#catSelSearch')[0];
+    var listEl = layero.find('#catSelList')[0];
+    var tagsEl = layero.find('#catSelTags')[0];
+    var countEl = layero.find('#catSelCount')[0];
+    var placeholderEl = layero.find('#catSelPlaceholder')[0];
+
+    var selected = new Set(initialSelected || []);  // 已选分类 ID
+
+    // 渲染列表
+    function renderList(filter) {
+        var html = '';
+        var kw = (filter || '').trim().toLowerCase();
+        categories.forEach(function(c) {
+            if (kw && c.name.toLowerCase().indexOf(kw) === -1) return;
+            var checked = selected.has(c.id) ? 'checked' : '';
+            html += '<label class="cat-sel-item">'
+                + '<input type="checkbox" value="' + c.id + '" ' + checked + '>'
+                + '<span>' + escHtml(c.name) + '</span>'
+                + '</label>';
+        });
+        if (!html) html = '<div class="cat-sel-empty">无匹配分类</div>';
+        listEl.innerHTML = html;
+
+        // 绑定 checkbox 变更事件
+        listEl.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                var id = parseInt(this.value);
+                if (this.checked) {
+                    selected.add(id);
+                } else {
+                    selected.delete(id);
+                }
+                updateUI();
+            });
+        });
+    }
+
+    // 更新标签和计数
+    function updateUI() {
+        var ids = Array.from(selected);
+        wrapEl.setAttribute('data-selected', ids.join(','));
+
+        // 计数
+        if (ids.length > 0) {
+            countEl.textContent = ids.length;
+            countEl.style.display = '';
+            placeholderEl.style.display = 'none';
+        } else {
+            countEl.style.display = 'none';
+            placeholderEl.style.display = '';
+        }
+
+        // 标签
+        var tagHtml = '';
+        ids.forEach(function(id) {
+            var cat = null;
+            categories.forEach(function(c) { if (c.id === id) cat = c; });
+            if (cat) {
+                tagHtml += '<span class="cat-sel-tag" data-id="' + id + '">' + escHtml(cat.name) + '<i class="fas fa-times cat-sel-tag-rm"></i></span>';
+            }
+        });
+        tagsEl.innerHTML = tagHtml;
+
+        // 标签删除事件
+        tagsEl.querySelectorAll('.cat-sel-tag-rm').forEach(function(rm) {
+            rm.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var tag = this.closest('.cat-sel-tag');
+                var id = parseInt(tag.getAttribute('data-id'));
+                selected.delete(id);
+                // 同步列表中的 checkbox
+                listEl.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+                    if (parseInt(cb.value) === id) cb.checked = false;
+                });
+                updateUI();
+            });
+        });
+    }
+
+    // 点击 bar 切换下拉
+    bar.addEventListener('click', function(e) {
+        if (dropdown.classList.contains('open')) {
+            closeDropdown();
+        } else {
+            openDropdown();
+        }
+    });
+
+    function openDropdown() {
+        renderList(searchInput ? searchInput.value : '');
+        dropdown.classList.add('open');
+        if (searchInput) { searchInput.focus(); }
+    }
+
+    function closeDropdown() {
+        dropdown.classList.remove('open');
+    }
+
+    // 搜索
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            renderList(this.value);
+        });
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDropdown();
+        });
+    }
+
+    // 点击外部关闭
+    document.addEventListener('click', function(e) {
+        if (wrapEl && !wrapEl.contains(e.target)) {
+            closeDropdown();
+        }
+    });
+
+    // 初始渲染（空搜索）
+    renderList('');
+    // 同步更新 data-selected / 标签 / 计数，确保初始选中状态正确反映到 UI 和 data 属性
+    updateUI();
+}
+</script>

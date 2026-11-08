@@ -1,0 +1,356 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}数据导入导出 — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+.ie-card {
+    background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    padding: 20px 24px; margin-bottom: 16px;
+}
+.ie-card h3 {
+    margin: 0 0 12px; font-size: 15px; display: flex; align-items: center; gap: 8px;
+}
+.model-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.model-table th {
+    text-align: left; padding: 8px 10px; border-bottom: 2px solid #f0f0f0;
+    color: #666; font-weight: 600;
+}
+.model-table td {
+    padding: 6px 10px; border-bottom: 1px solid #f5f5f5; color: #333;
+}
+.model-table tr:hover td { background: #fafff8; }
+.badge { display:inline-block; padding:1px 8px; border-radius:8px; font-size:11px; font-weight:600; }
+.badge-blue { background:#e3f2fd; color:#1565c0; }
+.badge-green { background:#e8f5e9; color:#2e7d32; }
+.badge-orange { background:#fff8e1; color:#f57f17; }
+.badge-red { background:#fbe9e7; color:#c62828; }
+
+.upload-zone {
+    border: 2px dashed #d2d2d2; border-radius: 8px; padding: 40px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    background: #fafafa;
+}
+.upload-zone:hover, .upload-zone.dragover { border-color: #5FB878; background: #f0f9f0; }
+.upload-zone i { font-size: 40px; color: #bbb; display: block; margin-bottom: 8px; }
+.upload-zone p { font-size: 13px; color: #999; margin: 0; }
+
+.preview-wrap {
+    display: none; margin-top: 16px;
+}
+.preview-banner {
+    background: #e8f5e9; border-radius: 6px; padding: 10px 16px; margin-bottom: 12px;
+    font-size: 13px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.preview-banner .label { color: #666; }
+.preview-banner .val { font-weight: 600; color: #333; }
+
+.import-report {
+    display: none; margin-top: 16px;
+}
+.report-section { margin-bottom: 12px; }
+.report-section h4 { font-size: 13px; margin: 0 0 6px; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ie-card">
+    <h3><i class="fas fa-download" style="color:#5FB878;"></i> 导出数据</h3>
+    <p style="font-size:13px;color:#888;margin:0 0 12px;">
+        将本系统中的所有项目数据导出为 JSON 文件，可用于迁移到另一个实例。
+    </p>
+    <table class="model-table">
+        <thead><tr><th>模型</th><th>记录数</th></tr></thead>
+        <tbody>
+            {% for m in models_meta %}
+            <tr>
+                <td>{{ m.verbose_name }} <span style="color:#aaa;font-size:11px;">({{ m.name }})</span></td>
+                <td><span class="badge badge-blue">{{ m.count }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div style="margin-top:12px;">
+        <button class="layui-btn" id="btnExport"><i class="fas fa-download"></i> 导出 JSON</button>
+    </div>
+</div>
+
+<div class="ie-card">
+    <h3><i class="fas fa-upload" style="color:#5FB878;"></i> 导入数据</h3>
+    <p style="font-size:13px;color:#888;margin:0 0 12px;">
+        上传从其他实例导出的 JSON 文件。系统会自动检测兼容性，未知的模型和字段会被跳过。
+    </p>
+
+    <div class="upload-zone" id="uploadZone">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <p>点击或拖拽 JSON 文件到此处</p>
+        <input type="file" id="fileInput" accept=".json" style="display:none;" />
+    </div>
+
+    <div class="preview-wrap" id="previewWrap">
+        <div class="preview-banner">
+            <span><span class="label">版本:</span> <span class="val" id="pvVersion">-</span></span>
+            <span><span class="label">导出时间:</span> <span class="val" id="pvTime">-</span></span>
+            <span><span class="label">数据集:</span> <span class="val" id="pvTotal">0</span> 条</span>
+            <span style="color:#f57f17;" id="pvConflictInfo">
+                <span class="label">其中</span>
+                <span class="val" id="pvExisting">0</span> 条已存在 <span style="color:#2e7d32;">(将被覆盖)</span> ·
+                <span class="val" id="pvNew">0</span> 条新增
+            </span>
+        </div>
+
+        <div id="unknownModelsWarning" style="display:none;background:#fff8e1;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-size:13px;"></div>
+
+        <table class="model-table" id="previewTable">
+            <thead><tr><th>模型</th><th>导出记录</th><th>目标库已有</th><th>操作</th></tr></thead>
+            <tbody id="previewBody"></tbody>
+        </table>
+
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="layui-btn layui-btn-warm" id="btnImportOverwrite" style="border:2px solid #ff9800;">
+                <i class="fas fa-sync"></i> 开始导入（推荐·覆盖已有）
+            </button>
+            <button class="layui-btn" id="btnImportSkip" style="background:#5FB878;">
+                <i class="fas fa-play"></i> 开始导入（跳过冲突）
+            </button>
+            <button class="layui-btn layui-btn-primary" id="btnImportCancel">
+                <i class="fas fa-times"></i> 取消
+            </button>
+        </div>
+    </div>
+
+    <div class="import-report" id="reportWrap">
+        <h4 style="font-size:14px;margin:0 0 10px;"><i class="fas fa-clipboard-list"></i> 导入结果</h4>
+        <div id="reportContent"></div>
+        <div style="margin-top:12px;">
+            <button class="layui-btn layui-btn-primary" onclick="location.reload()">
+                <i class="fas fa-redo"></i> 刷新页面
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+layui.use(['layer'], function(){
+    var layer = layui.layer;
+    var uploadedData = null;
+
+    /* ===== HTML 转义工具 ===== */
+    function escHtml(str){
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str||''));
+        return div.innerHTML;
+    }
+
+    /* ===== 导出 ===== */
+    document.getElementById('btnExport').addEventListener('click', function(){
+        var idx = layer.load(1, {shade: [0.2,'#000']});
+        window.location.href = '{% url "api_export" %}';
+        // 导出是直接下载，页面跳转后 loading 会自动消失
+        setTimeout(function(){ layer.close(idx); }, 3000);
+    });
+
+    /* ===== 文件上传 ===== */
+    var $zone = document.getElementById('uploadZone');
+    var $fileInput = document.getElementById('fileInput');
+
+    $zone.addEventListener('click', function(){ $fileInput.click(); });
+    $zone.addEventListener('dragover', function(e){ e.preventDefault(); $zone.classList.add('dragover'); });
+    $zone.addEventListener('dragleave', function(){ $zone.classList.remove('dragover'); });
+    $zone.addEventListener('drop', function(e){
+        e.preventDefault();
+        $zone.classList.remove('dragover');
+        if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    $fileInput.addEventListener('change', function(){
+        if(this.files.length) handleFile(this.files[0]);
+    });
+
+    function handleFile(file){
+        if(!file.name.endsWith('.json')){
+            layer.msg('请选择 JSON 文件', {icon:5});
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(e){
+            try {
+                uploadedData = JSON.parse(e.target.result);
+                previewImport(uploadedData);
+            } catch(err){
+                layer.msg('JSON 解析失败: ' + err.message, {icon:5});
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    /* ===== 预览 ===== */
+    function previewImport(data){
+        var loadIdx = layer.load(1, {shade: [0.2,'#000']});
+        fetch('{% url "api_import_preview" %}', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(data),
+        }).then(function(r){ return r.json(); }).then(function(res){
+            layer.close(loadIdx);
+            if(res.code !== 0){
+                layer.msg(res.message||'预览失败', {icon:5});
+                return;
+            }
+            var pv = res.data;
+            document.getElementById('pvVersion').textContent = pv.version;
+            document.getElementById('pvTime').textContent = pv.export_time || '-';
+            document.getElementById('pvTotal').textContent = pv.total_records;
+            document.getElementById('pvExisting').textContent = pv.total_existing || 0;
+            document.getElementById('pvNew').textContent = pv.total_new || 0;
+
+            // 未知模型警告
+            var warnEl = document.getElementById('unknownModelsWarning');
+            if(pv.unknown_models && pv.unknown_models.length){
+                warnEl.style.display = '';
+                warnEl.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#f57f17;"></i> ' +
+                    '<strong>发现 ' + pv.unknown_models.length + ' 个当前系统不存在的模型:</strong> ' +
+                    pv.unknown_models.join(', ') +
+                    '。这些模型的数据将<strong>被跳过</strong>，不影响其他数据导入。';
+            } else {
+                warnEl.style.display = 'none';
+            }
+
+            // 模型列表
+            var tbody = document.getElementById('previewBody');
+            var html = '';
+            (pv.models || []).forEach(function(m){
+                var isUnknown = m.is_unknown || (pv.unknown_models && pv.unknown_models.indexOf(m.name) !== -1);
+                var safeCount = m.existing_count || 0;
+                var newCount = m.count - safeCount;
+                var actionTxt = isUnknown ? '<span class="badge badge-orange">将被跳过</span>' :
+                    (safeCount > 0 ? '<span class="badge badge-orange">覆盖 ' + safeCount + '</span> <span class="badge badge-green">新增 ' + newCount + '</span>'
+                                   : '<span class="badge badge-green">全部新增</span>');
+                html +=
+                    '<tr>' +
+                    '  <td>' + escHtml(m.name) + '</td>' +
+                    '  <td><span class="badge badge-blue">' + m.count + '</span></td>' +
+                    '  <td>' + (isUnknown ? '<span class="badge badge-orange">-</span>' : '<span class="badge badge-blue">' + safeCount + '</span>') + '</td>' +
+                    '  <td>' + actionTxt + '</td>' +
+                    '</tr>';
+            });
+            tbody.innerHTML = html;
+
+            document.getElementById('previewWrap').style.display = '';
+            document.getElementById('reportWrap').style.display = 'none';
+        }).catch(function(err){
+            layer.close(loadIdx);
+            layer.msg('预览请求失败: ' + err.message, {icon:5});
+        });
+    }
+
+    /* ===== 执行导入 ===== */
+    function doImport(strategy){
+        if(!uploadedData){
+            layer.msg('请先上传文件', {icon:5});
+            return;
+        }
+        var label = strategy === 'overwrite' ? '覆盖' : '跳过';
+        layer.confirm('确定开始导入？冲突策略为「' + label + '」。此操作将写入数据库。', {
+            title: '确认导入', btn: ['确定', '取消'], area: '400px'
+        }, function(idx){
+            layer.close(idx);
+            // 显示加载动画，防止用户重复操作
+            var loadIdx = layer.load(2, {shade: [0.3, '#000'], time: 0});
+            var url = '{% url "api_import_execute" %}?conflict=' + strategy;
+            fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(uploadedData),
+            }).then(function(r){ return r.json(); }).then(function(res){
+                layer.close(loadIdx);
+                if(res.code !== 0){
+                    layer.msg(res.message||'导入失败', {icon:5});
+                    return;
+                }
+                showReport(res.data);
+            }).catch(function(err){
+                layer.close(loadIdx);
+                layer.msg('导入请求失败: ' + err.message, {icon:5});
+            });
+        });
+    }
+
+    document.getElementById('btnImportSkip').addEventListener('click', function(){
+        doImport('skip');
+    });
+    document.getElementById('btnImportOverwrite').addEventListener('click', function(){
+        doImport('overwrite');
+    });
+    document.getElementById('btnImportCancel').addEventListener('click', function(){
+        document.getElementById('previewWrap').style.display = 'none';
+        uploadedData = null;
+    });
+
+    /* ===== 导入报告 ===== */
+    function showReport(report){
+        document.getElementById('previewWrap').style.display = 'none';
+        var el = document.getElementById('reportWrap');
+        el.style.display = '';
+
+        var html = '';
+
+        // 汇总统计
+        html +=
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">' +
+            (report.total_overwritten ? '<span class="badge badge-orange" style="font-size:13px;padding:4px 12px;">覆盖更新: ' + report.total_overwritten + '</span>' : '') +
+            (report.total_created ? '<span class="badge badge-green" style="font-size:13px;padding:4px 12px;">新增导入: ' + report.total_created + '</span>' : '') +
+            (report.total_imported ? '<span class="badge badge-blue" style="font-size:13px;padding:4px 12px;">合计写入: ' + report.total_imported + '</span>' : '') +
+            (report.total_skipped ? '<span class="badge badge-orange" style="font-size:13px;padding:4px 12px;">跳过: ' + report.total_skipped + '</span>' : '') +
+            (report.total_errors ? '<span class="badge badge-red" style="font-size:13px;padding:4px 12px;">错误: ' + report.total_errors + '</span>' : '') +
+            (report.total_warnings ? '<span class="badge badge-orange" style="font-size:13px;padding:4px 12px;">警告: ' + report.total_warnings + '</span>' : '') +
+            '</div>';
+
+        // 未知模型
+        if(report.unknown_models && report.unknown_models.length){
+            html +=
+                '<div class="report-section">' +
+                '  <h4 style="color:#f57f17;"><i class="fas fa-exclamation-triangle"></i> 未知模型（已跳过）</h4>' +
+                '  <p style="font-size:12px;color:#888;">' + report.unknown_models.join(', ') + '</p>' +
+                '</div>';
+        }
+
+        // 未知字段
+        if(report.unknown_fields && Object.keys(report.unknown_fields).length){
+            var fieldsHtml = '';
+            for(var model in report.unknown_fields){
+                fieldsHtml += '<div style="font-size:12px;margin:2px 0;">' + model + ': ' + report.unknown_fields[model].join(', ') + '</div>';
+            }
+            html +=
+                '<div class="report-section">' +
+                '  <h4 style="color:#f57f17;"><i class="fas fa-code-branch"></i> 未知字段（已自动跳过）</h4>' +
+                '  <div style="background:#fff8e1;padding:8px 12px;border-radius:4px;">' + fieldsHtml + '</div>' +
+                '</div>';
+        }
+
+        // 错误
+        if(report.errors && report.errors.length){
+            var errHtml = '';
+            report.errors.slice(0, 10).forEach(function(e){
+                errHtml += '<div style="font-size:12px;margin:2px 0;">[' + e[0] + '] ' + escHtml(e[1]) + '</div>';
+            });
+            html +=
+                '<div class="report-section">' +
+                '  <h4 style="color:#c62828;"><i class="fas fa-times-circle"></i> 错误</h4>' +
+                '  <div style="background:#fbe9e7;padding:8px 12px;border-radius:4px;max-height:200px;overflow-y:auto;">' + errHtml + '</div>' +
+                '</div>';
+        }
+
+        html += '<p style="font-size:12px;color:#999;margin-top:8px;">' +
+            '提示: 建议刷新页面确认数据已正确导入。' +
+            '</p>';
+
+        document.getElementById('reportContent').innerHTML = html;
+    }
+});
+</script>
+{% endblock %}

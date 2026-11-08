@@ -1,0 +1,499 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}防火墙管理 — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+.fw-status-dot {
+  display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;
+}
+.fw-status-dot.active { background:#5FB878; }
+.fw-status-dot.inactive { background:#ccc; }
+.fw-type-tag {
+  display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;color:#fff;
+}
+.fw-type-tag.ip_block { background:#e74c3c; }
+.fw-type-tag.page_block { background:#f39c12; }
+.fw-type-tag.ip_whitelist { background:#2ecc71; }
+.fw-resp-tag {
+  display:inline-block;padding:1px 6px;border-radius:2px;font-size:11px;background:#f0f0f0;color:#666;
+}
+
+/* ================================
+   权限拒绝醒目卡片
+   ================================ */
+.permission-denied-wrap {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:60vh;
+  padding:20px;
+}
+
+.permission-denied-card {
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  text-align:center;
+  padding:50px 48px 40px;
+  max-width:480px;
+  width:100%;
+  border-top:5px solid #e74c3c;
+  animation:pdFadeIn .4s ease;
+}
+
+@keyframes pdFadeIn {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.permission-denied-card .pd-icon-wrap {
+  width:80px;
+  height:80px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#fff5f5,#ffe0e0);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 18px;
+}
+
+.permission-denied-card .pd-icon-wrap i {
+  font-size:36px;
+  color:#e74c3c;
+}
+
+.permission-denied-card .pd-title {
+  font-size:24px;
+  font-weight:700;
+  color:#2c3e50;
+  margin:0 0 10px;
+}
+
+.permission-denied-card .pd-desc {
+  font-size:15px;
+  color:#666;
+  margin:0 0 22px;
+  line-height:1.6;
+  background:#fefaf0;
+  border:1px solid #fdebd0;
+  border-radius:8px;
+  padding:12px 16px;
+}
+
+.permission-denied-card .pd-role-info {
+  font-size:13px;
+  color:#888;
+  margin-bottom:14px;
+  padding:10px;
+  background:#f9f9f9;
+  border-radius:8px;
+}
+
+.permission-denied-card .pd-role-info i {
+  margin-right:6px;
+}
+
+.permission-denied-card .pd-hint {
+  font-size:13px;
+  color:#999;
+  margin-bottom:24px;
+  line-height:1.5;
+}
+
+.permission-denied-card .pd-hint i {
+  color:#f39c12;
+  margin-right:5px;
+}
+
+.permission-denied-card .pd-back-btn {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:10px 32px;
+  background:#5FB878;
+  color:#fff;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:500;
+  text-decoration:none;
+  transition:background .2s, transform .15s;
+}
+
+.permission-denied-card .pd-back-btn:hover {
+  background:#4aa86a;
+  transform:translateY(-1px);
+  color:#fff;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+{% if error %}
+{# ===== 醒目权限拒绝提示 ===== #}
+<div class="permission-denied-wrap">
+  <div class="permission-denied-card">
+    <div class="pd-icon-wrap">
+      <i class="fas fa-shield-halved"></i>
+    </div>
+    <h2 class="pd-title">访问被拒绝</h2>
+    <p class="pd-desc">{{ error }}</p>
+    <div class="pd-role-info">
+      <i class="fas fa-user-shield"></i>
+      当前角色：
+      {% if request.user.is_superuser %}
+        <strong style="color:#5FB878;">超级管理员</strong>
+      {% elif request.user.is_staff %}
+        <strong style="color:#e67e22;">管理员</strong>
+      {% else %}
+        <strong style="color:#888;">普通用户</strong>
+      {% endif %}
+    </div>
+    <div class="pd-hint">
+      <i class="fas fa-lightbulb"></i>
+      提示：如需访问防火墙管理，请联系超级管理员提升权限
+    </div>
+    <a href="{% url 'index' %}" class="pd-back-btn">
+      <i class="fas fa-arrow-left"></i> 返回首页
+    </a>
+  </div>
+</div>
+{% else %}
+
+{# ===== 操作栏 ===== #}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+  <div>
+    <i class="fas fa-shield-halved" style="color:#e74c3c;font-size:20px;"></i>
+    <span style="font-size:16px;font-weight:600;color:#393D49;margin-left:6px;">防火墙规则</span>
+    <span style="font-size:12px;color:#999;margin-left:8px;">
+      共 <strong id="ruleCount">{{ rules|length }}</strong> 条规则
+    </span>
+  </div>
+  <div>
+    <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="showForm()">
+      <i class="fas fa-plus"></i> 添加规则
+    </button>
+    <button class="layui-btn layui-btn-sm layui-btn-primary" onclick="showTestPanel()">
+      <i class="fas fa-flask"></i> 规则测试
+    </button>
+  </div>
+</div>
+
+{# ===== 规则列表 ===== #}
+<div class="layui-card">
+  <div class="layui-card-header" style="border-bottom:1px solid #f0f0f0;">
+    <i class="fas fa-list"></i> 规则列表
+  </div>
+  <div class="layui-card-body" style="padding:0;">
+    <table class="layui-table" style="margin:0;font-size:13px;">
+      <thead>
+        <tr>
+          <th style="width:60px;">状态</th>
+          <th style="width:100px;">类型</th>
+          <th>匹配值</th>
+          <th style="width:100px;">拦截方式</th>
+          <th style="width:70px;">命中</th>
+          <th style="width:120px;">备注</th>
+          <th style="width:140px;">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rules %}
+        <tr data-id="{{ r.id }}" data-type="{{ r.rule_type }}" data-value="{{ r.value }}"
+            data-response="{{ r.response_type }}" data-content="{{ r.custom_content|escape }}"
+            data-redirect="{{ r.redirect_url }}" data-desc="{{ r.description|escape }}">
+          <td>
+            <span class="fw-status-dot {% if r.is_active %}active{% else %}inactive{% endif %}"></span>
+          </td>
+          <td><span class="fw-type-tag {{ r.rule_type }}">{{ r.get_rule_type_display }}</span></td>
+          <td><code style="font-size:12px;background:#f5f5f5;padding:1px 4px;">{{ r.value }}</code></td>
+          <td><span class="fw-resp-tag">{{ r.get_response_type_display }}</span></td>
+          <td style="text-align:center;">
+            <span style="font-weight:600;">{{ r.hit_count }}</span>
+            {% if r.last_hit_at %}
+            <div style="font-size:10px;color:#999;">{{ r.last_hit_at|date:'H:i' }}</div>
+            {% endif %}
+          </td>
+          <td style="font-size:12px;color:#999;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.description|default:'-' }}</td>
+          <td>
+            <button class="layui-btn layui-btn-xs layui-btn-normal" onclick="showForm(this.parentElement.parentElement.dataset)">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="layui-btn layui-btn-xs {% if r.is_active %}layui-btn-warm{% else %}layui-btn-primary{% endif %}"
+                    onclick="toggleRule({{ r.id }})">
+              <i class="fas {% if r.is_active %}fa-pause{% else %}fa-play{% endif %}"></i>
+            </button>
+            <button class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteRule({{ r.id }}, '{{ r.value }}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:30px 0;color:#ccc;">
+          <i class="fas fa-shield" style="font-size:30px;display:block;margin-bottom:8px;"></i>
+          暂无规则，点击"添加规则"开始配置防火墙
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+
+{% block js %}
+<script>
+let layer, form;
+
+layui.use(['layer', 'form'], function() {
+  layer = layui.layer;
+  form = layui.form;
+});
+
+// ===================================================================
+// 添加/编辑规则弹窗
+// ===================================================================
+function showForm(data) {
+  var isEdit = !!data;
+  var defaults = {
+    id: '', rule_type: 'ip_block', value: '', is_active: '1',
+    response_type: 'forbidden', custom_content: '', redirect_url: '', description: '',
+  };
+  if (isEdit) {
+    defaults.id = data.id;
+    defaults.rule_type = data.type;
+    defaults.value = data.value;
+    defaults.response_type = data.response || 'forbidden';
+    defaults.custom_content = data.content || '';
+    defaults.redirect_url = data.redirect || '';
+    defaults.description = data.desc || '';
+  }
+
+  var html = [
+    '<form class="layui-form" style="padding:18px 20px 10px;">',
+    '<input type="hidden" name="id" value="' + defaults.id + '">',
+
+    '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">规则类型</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<select name="rule_type" lay-filter="ruleType">',
+    '<option value="ip_block"' + (defaults.rule_type==='ip_block'?' selected':'') + '>IP 黑名单</option>',
+    '<option value="page_block"' + (defaults.rule_type==='page_block'?' selected':'') + '>路径黑名单</option>',
+    '<option value="ip_whitelist"' + (defaults.rule_type==='ip_whitelist'?' selected':'') + '>IP 白名单</option>',
+    '</select></div></div>',
+
+    '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">匹配值</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<input type="text" name="value" class="layui-input" placeholder="例: 192.168.1.1 或 /admin/" value="' + escHtml(defaults.value) + '">',
+    '<div style="font-size:11px;color:#999;margin-top:3px;">IP 支持精确匹配、CIDR(192.168.1.0/24)、前缀(192.168.1.)、通配符(192.168.*)；路径支持前缀匹配(/admin/)和通配符(/admin/*)</div>',
+    '</div></div>',
+
+    '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">拦截方式</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<select name="response_type" lay-filter="respType" id="respTypeSelect">',
+    '<option value="forbidden"' + (defaults.response_type==='forbidden'?' selected':'') + '>默认拒绝 403</option>',
+    '<option value="custom_html"' + (defaults.response_type==='custom_html'?' selected':'') + '>自定义 HTML</option>',
+    '<option value="custom_js"' + (defaults.response_type==='custom_js'?' selected':'') + '>自定义 JS</option>',
+    '<option value="redirect"' + (defaults.response_type==='redirect'?' selected':'') + '>重定向</option>',
+    '</select></div></div>',
+
+    // 自定义内容（HTML/JS）
+    '<div class="layui-form-item" id="customContentGroup" style="display:' + (defaults.response_type==='custom_html'||defaults.response_type==='custom_js'?'':'none') + ';">',
+    '<label class="layui-form-label" style="width:80px;">自定义内容</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<textarea name="custom_content" class="layui-textarea" style="min-height:100px;font-family:monospace;font-size:12px;" placeholder="填写 HTML 或 JS 代码">' + escHtml(defaults.custom_content) + '</textarea>',
+    '</div></div>',
+
+    // 重定向 URL
+    '<div class="layui-form-item" id="redirectUrlGroup" style="display:' + (defaults.response_type==='redirect'?'':'none') + ';">',
+    '<label class="layui-form-label" style="width:80px;">重定向 URL</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<input type="text" name="redirect_url" class="layui-input" placeholder="https://example.com" value="' + escHtml(defaults.redirect_url) + '">',
+    '</div></div>',
+
+    '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">备注</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<input type="text" name="description" class="layui-input" placeholder="规则说明" value="' + escHtml(defaults.description) + '">',
+    '</div></div>',
+
+    '<div class="layui-form-item" style="text-align:center;margin-bottom:0;"><div class="layui-input-block" style="margin-left:0;">',
+    '<button type="button" class="layui-btn" onclick="submitForm()"><i class="fas fa-save"></i> ' + (isEdit ? '更新' : '创建') + '</button>',
+    '<button type="button" class="layui-btn layui-btn-primary" onclick="layer.closeAll()">取消</button>',
+    '</div></div>',
+
+    '</form>',
+  ].join('\n');
+
+  layer.open({
+    type: 1,
+    title: '<i class="fas fa-shield-halved"></i> ' + (isEdit ? '编辑规则' : '添加规则'),
+    area: ['560px', '520px'],
+    shadeClose: true,
+    shade: 0.3,
+    content: html,
+    success: function() {
+      // 切换拦截方式时显示/隐藏对应字段
+      layui.use('form', function() {
+        var f = layui.form;
+        f.render();
+        f.on('select(respType)', function(data) {
+          document.getElementById('customContentGroup').style.display =
+            (data.value === 'custom_html' || data.value === 'custom_js') ? '' : 'none';
+          document.getElementById('redirectUrlGroup').style.display =
+            (data.value === 'redirect') ? '' : 'none';
+        });
+      });
+    },
+  });
+}
+
+// ===================================================================
+// 提交表单
+// ===================================================================
+function submitForm() {
+  var form = document.querySelector('.layui-form');
+  var data = {};
+  ['id','rule_type','value','response_type','custom_content','redirect_url','description'].forEach(function(k) {
+    var el = form.querySelector('[name="' + k + '"]');
+    if (el) data[k] = el.value;
+  });
+  data.is_active = true;
+
+  if (!data.rule_type) { layer.msg('请选择规则类型', {icon:2}); return; }
+  if (!data.value) { layer.msg('请输入匹配值', {icon:2}); return; }
+
+  // 构建 request body
+  var body = JSON.stringify(data);
+
+  fetch('/xiaoying_admin/api/firewall/save/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: body,
+    credentials: 'same-origin',
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok) {
+      layer.msg(res.message, {icon: 1});
+      layer.closeAll();
+      setTimeout(function() { location.reload(); }, 600);
+    } else {
+      layer.msg(res.error || '操作失败', {icon: 2});
+    }
+  })
+  .catch(function(e) { layer.msg('请求失败: ' + e, {icon: 2}); });
+}
+
+// ===================================================================
+// 启用/禁用
+// ===================================================================
+function toggleRule(id) {
+  fetch('/xiaoying_admin/api/firewall/' + id + '/toggle/', {
+    method: 'POST',
+    credentials: 'same-origin',
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok) {
+      layer.msg(res.message, {icon: 1});
+      setTimeout(function() { location.reload(); }, 400);
+    } else {
+      layer.msg(res.error || '操作失败', {icon: 2});
+    }
+  })
+  .catch(function(e) { layer.msg('请求失败', {icon: 2}); });
+}
+
+// ===================================================================
+// 删除规则
+// ===================================================================
+function deleteRule(id, val) {
+  layer.confirm('确定删除规则 <strong>' + escHtml(val) + '</strong> 吗？', {
+    icon: 3, title: '确认删除', btn: ['删除', '取消'],
+  }, function() {
+    fetch('/xiaoying_admin/api/firewall/' + id + '/delete/', {
+      method: 'POST',
+      credentials: 'same-origin',
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok) {
+        layer.msg(res.message, {icon: 1});
+        setTimeout(function() { location.reload(); }, 400);
+      } else {
+        layer.msg(res.error || '删除失败', {icon: 2});
+      }
+    })
+    .catch(function(e) { layer.msg('请求失败', {icon: 2}); });
+  });
+}
+
+// ===================================================================
+// 规则测试工具
+// ===================================================================
+function showTestPanel() {
+  var html = [
+    '<div style="padding:18px 20px;">',
+    '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">规则类型</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<select id="testRuleType"><option value="ip_block">IP 黑名单</option><option value="page_block">路径黑名单</option><option value="ip_whitelist">IP 白名单</option></select>',
+    '</div></div>',
+    '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">匹配值</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<input type="text" id="testRuleValue" class="layui-input" placeholder="例: 192.168.1.1 或 /admin/">',
+    '</div></div>',
+    '<div class="layui-form-item" id="testValueGroup"><label class="layui-form-label" style="width:80px;">测试值</label><div class="layui-input-block" style="margin-left:110px;">',
+    '<input type="text" id="testInput" class="layui-input" placeholder="输入要测试的 IP 或路径">',
+    '<div style="font-size:11px;color:#999;margin-top:3px;">IP 规则输入 IP 地址，路径规则输入路径（如 /admin/settings/）</div>',
+    '</div></div>',
+    '<div style="text-align:center;margin-top:10px;">',
+    '<button class="layui-btn" onclick="runTest()"><i class="fas fa-flask"></i> 开始测试</button>',
+    '</div>',
+    '<div id="testResult" style="margin-top:12px;text-align:center;font-size:14px;display:none;"></div>',
+    '</div>',
+  ].join('\n');
+
+  layer.open({
+    type: 1,
+    title: '<i class="fas fa-flask"></i> 规则测试',
+    area: ['480px', '360px'],
+    shadeClose: true,
+    content: html,
+  });
+}
+
+function runTest() {
+  var ruleType = document.getElementById('testRuleType').value;
+  var ruleValue = document.getElementById('testRuleValue').value.trim();
+  var testInput = document.getElementById('testInput').value.trim();
+  var resultEl = document.getElementById('testResult');
+
+  if (!ruleValue) { layer.msg('请输入匹配值', {icon:2}); return; }
+  if (!testInput) { layer.msg('请输入测试值', {icon:2}); return; }
+
+  var testIp = ruleType === 'page_block' ? '': testInput;
+  var testPath = ruleType === 'page_block' ? testInput : '';
+
+  fetch('/xiaoying_admin/api/firewall/test/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({test_ip: testIp, test_path: testPath, rule_type: ruleType, value: ruleValue}),
+    credentials: 'same-origin',
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    resultEl.style.display = 'block';
+    if (res.matched) {
+      resultEl.innerHTML = '<span style="color:#e74c3c;font-size:18px;">🚫 匹配成功</span><div style="color:#999;font-size:12px;margin-top:4px;">该规则会拦截此请求</div>';
+    } else {
+      resultEl.innerHTML = '<span style="color:#2ecc71;font-size:18px;">✅ 不匹配</span><div style="color:#999;font-size:12px;margin-top:4px;">该规则不会拦截此请求</div>';
+    }
+  })
+  .catch(function(e) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '<span style="color:#e74c3c;">请求失败: ' + e + '</span>';
+  });
+}
+
+// ===================================================================
+// 工具
+// ===================================================================
+function escHtml(s) {
+  return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
+}
+</script>
+{% endblock %}

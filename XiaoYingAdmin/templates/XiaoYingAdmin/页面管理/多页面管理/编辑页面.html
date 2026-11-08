@@ -1,0 +1,152 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% block title %}编辑页面 - {{ page.name }}{% endblock %}
+{% block head %}
+<style>
+    .ep-wrap { max-width:960px; margin:0 auto; }
+    .ep-card { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:24px 28px; margin-bottom:16px; }
+    .ep-card h3 { font-size:15px; color:#2D3748; margin:0 0 16px 0; }
+    .ep-card h3 i { color:#1E9FFF; margin-right:6px; }
+    .ep-card .layui-form-label { width:100px; }
+    .ep-card .layui-input-block { margin-left:120px; }
+
+    .ep-code-wrap { border:1px solid #e6e6e6; border-radius:4px; overflow:hidden; }
+    .ep-code-wrap .CodeMirror { height:auto; min-height:400px; font-size:13px; }
+
+    .ep-full-url { font-size:12px; color:#5FB878; margin-top:4px; }
+
+    .ep-actions { display:flex; gap:12px; margin-top:4px; }
+    .ep-actions .layui-btn { padding:0 28px; }
+
+    .ep-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+{% endblock %}
+{% block body %}
+<div class="ep-wrap">
+    <div style="margin-bottom:16px;">
+        <a href="{% url 'multi_page_project_detail' project_id=page.project_id %}" class="layui-btn layui-btn-primary">
+            <i class="fas fa-arrow-left"></i> 返回项目
+        </a>
+        <span style="margin-left:12px;font-size:15px;color:#2D3748;">
+            <i class="fas fa-edit" style="color:#1E9FFF;margin-right:6px;"></i>
+            编辑：{{ page.name }}
+        </span>
+    </div>
+
+    <form method="post" id="editForm">
+        {% csrf_token %}
+
+        <!-- 基本信息 -->
+        <div class="ep-card">
+            <h3><i class="fas fa-info-circle"></i>基本信息</h3>
+            <div class="layui-form-item">
+                <label class="layui-form-label">页面名称</label>
+                <div class="layui-input-block">
+                    <input type="text" name="name" class="layui-input" value="{{ page.name }}" required>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">导航栏名称</label>
+                <div class="layui-input-block">
+                    <input type="text" name="nav_title" class="layui-input" value="{{ page.nav_title|default:page.name }}" placeholder="留空则使用页面名称">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">URL 路径</label>
+                <div class="layui-input-block">
+                    <input type="text" name="url_path" class="layui-input" value="{{ page.url_path }}" required>
+                    {% if page.full_url %}
+                    <div class="ep-full-url"><i class="fas fa-link"></i> {{ page.full_url }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- SEO 信息 -->
+        <div class="ep-card">
+            <h3><i class="fas fa-search"></i>SEO 元数据</h3>
+            <div class="ep-meta-grid">
+                <div class="layui-form-item" style="margin-bottom:0;">
+                    <label class="layui-form-label" style="width:80px;">SEO 标题</label>
+                    <div class="layui-input-block" style="margin-left:100px;">
+                        <input type="text" name="title" class="layui-input" value="{{ page.title }}">
+                        <div class="form-tip" style="font-size:11px;color:#999;margin-top:2px;">建议 10-60 字符</div>
+                    </div>
+                </div>
+                <div class="layui-form-item" style="margin-bottom:0;">
+                    <label class="layui-form-label" style="width:80px;">SEO 关键词</label>
+                    <div class="layui-input-block" style="margin-left:100px;">
+                        <input type="text" name="keywords" class="layui-input" value="{{ page.keywords }}">
+                        <div class="form-tip" style="font-size:11px;color:#999;margin-top:2px;">逗号分隔</div>
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item" style="margin-top:12px;margin-bottom:0;">
+                <label class="layui-form-label" style="width:80px;">SEO 描述</label>
+                <div class="layui-input-block" style="margin-left:100px;">
+                    <textarea name="description" class="layui-textarea" style="min-height:60px;">{{ page.description }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- HTML 代码 -->
+        <div class="ep-card">
+            <h3><i class="fas fa-code"></i>HTML 内容</h3>
+            <div class="ep-code-wrap">
+                <textarea name="html_content" id="htmlEditor" style="display:none;">{{ page.html_content }}</textarea>
+            </div>
+        </div>
+
+        <!-- 保存按钮 -->
+        <div class="ep-card" style="text-align:center;">
+            <div class="ep-actions" style="justify-content:center;">
+                <button class="layui-btn" style="padding:0 40px;font-size:15px;">
+                    <i class="fas fa-save"></i> 保存更改
+                </button>
+                <a href="{% url 'multi_page_project_detail' project_id=page.project_id %}" class="layui-btn layui-btn-primary">取消</a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
+
+<script>
+layui.use(['form'], function() {
+    var form = layui.form;
+
+    // 初始化 CodeMirror
+    var editor = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), {
+        mode: 'htmlmixed',
+        lineNumbers: true,
+        lineWrapping: true,
+        styleActiveLine: true,
+        matchBrackets: true,
+        indentUnit: 2,
+        tabSize: 2,
+        viewportMargin: Infinity,
+        extraKeys: {
+            'Ctrl-S': function() { document.getElementById('editForm').submit(); }
+        },
+    });
+
+    // 调整编辑器高度
+    editor.setSize(null, Math.max(400, editor.getDoc().lineCount() * 18));
+    editor.on('change', function() {
+        var lines = editor.getDoc().lineCount();
+        editor.setSize(null, Math.max(400, lines * 18));
+    });
+
+    // 提交前同步 CodeMirror 内容到 textarea
+    document.getElementById('editForm').addEventListener('submit', function() {
+        editor.save();
+    });
+});
+</script>
+{% endblock %}

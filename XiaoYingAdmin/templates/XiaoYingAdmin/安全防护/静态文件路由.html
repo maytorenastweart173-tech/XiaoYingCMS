@@ -1,0 +1,284 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% block title %}静态文件路由{% endblock %}
+{% block body %}
+
+<style>
+.sfr-mgr { background:#fff; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+.sfr-mgr-header { display:flex; justify-content:space-between; align-items:center; padding:12px 15px; border-bottom:1px solid #e6e6e6; }
+.sfr-mgr-header h3 { margin:0; font-size:15px; color:#393D49; }
+.sfr-toolbar { display:flex; gap:8px; align-items:center; }
+.sfr-table { width:100%; border-collapse:collapse; }
+.sfr-table th { background:#fafafa; padding:10px 15px; text-align:left; font-weight:600; color:#666; font-size:13px; border-bottom:2px solid #e6e6e6; }
+.sfr-table td { padding:10px 15px; border-bottom:1px solid #f2f2f2; font-size:13px; color:#333; vertical-align:middle; }
+.sfr-table tr:hover td { background:#f8f8f8; }
+.sfr-empty { padding:30px; text-align:center; color:#999; }
+.sfr-path { font-family:monospace; font-size:13px; color:#5FB878; }
+.sfr-path-code { background:#f6f6f6; padding:2px 8px; border-radius:3px; }
+.sfr-desc { color:#999; font-size:12px; }
+.sfr-badge { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; }
+.sfr-badge-on { background:#5FB878; color:#fff; }
+.sfr-badge-off { background:#FF5722; color:#fff; }
+.sfr-pagination { display:flex; justify-content:space-between; align-items:center; padding:10px 15px; border-top:1px solid #e6e6e6; font-size:13px; color:#999; }
+.sfr-pagination .btns { display:flex; gap:4px; align-items:center; }
+.sfr-pagination .btns button { min-width:32px; height:32px; line-height:32px; text-align:center; padding:0 10px; border:1px solid #e6e6e6; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; transition:all .15s; }
+.sfr-pagination .btns button:hover { border-color:#5FB878; color:#5FB878; }
+.sfr-pagination .btns button.active { background:#5FB878; color:#fff; border-color:#5FB878; }
+.sfr-pagination .btns button:disabled { opacity:.4; cursor:not-allowed; }
+.sfr-pagination .goto { display:flex; align-items:center; gap:4px; }
+.sfr-pagination .goto input { width:48px; height:28px; border:1px solid #e6e6e6; border-radius:4px; text-align:center; font-size:13px; outline:none; }
+.sfr-pagination .goto input:focus { border-color:#5FB878; }
+</style>
+
+<div class="sfr-mgr">
+    <div class="sfr-mgr-header">
+        <h3><i class="fas fa-file"></i> 静态文件路由</h3>
+        <div class="sfr-toolbar">
+            <input type="text" id="sfr-search-input" class="layui-input" style="width:200px;height:30px;font-size:13px;" placeholder="搜索路径或备注..." value="">
+            <button class="layui-btn layui-btn-sm" id="btn-search-sfr"><i class="fas fa-search"></i></button>
+            <button class="layui-btn layui-btn-sm layui-btn-primary" id="btn-refresh-sfr"><i class="fas fa-sync-alt"></i></button>
+            <button class="layui-btn layui-btn-sm" id="btn-add-sfr"><i class="fas fa-plus"></i> 新增路径</button>
+        </div>
+    </div>
+    <table class="sfr-table">
+        <thead><tr><th style="width:50px;">ID</th><th>文件路径</th><th style="width:80px;">状态</th><th>备注</th><th style="width:80px;">创建时间</th><th style="width:120px;">操作</th></tr></thead>
+        <tbody id="sfr-table-body">
+            <tr><td colspan="6" class="sfr-empty">加载中...</td></tr>
+        </tbody>
+    </table>
+    <div class="sfr-pagination" id="sfr-pagination-bar" style="display:none;">
+        <div class="info" id="sfr-page-info"></div>
+        <div class="btns" id="sfr-page-btns"></div>
+        <div class="goto">
+            <span>跳至</span>
+            <input type="text" id="sfr-goto-input" maxlength="6">
+            <button class="layui-btn layui-btn-xs" id="btn-goto-page">GO</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑弹窗模板 -->
+<script type="text/html" id="sfrFormTpl">
+<form id="sfrFormEl" onsubmit="return false;" style="padding:20px 15px 0;">
+    <div class="layui-form-item">
+        <label class="layui-form-label">文件路径</label>
+        <div class="layui-input-block">
+            <input type="text" name="path" class="layui-input" placeholder="如: aa.txt、image/logo.png、assets/*" value="<!-- PATH -->">
+            <div style="color:#999; font-size:12px; margin-top:4px;">请求路径去掉开头的 / 后与此比较。支持通配符后缀 <code>*</code>，如 <code>assets/*</code> 匹配 assets/ 下所有路径。路径不可重复。</div>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">启用</label>
+        <div class="layui-input-block">
+            <input type="checkbox" name="is_active" lay-skin="switch" lay-filter="sfr-active" <!-- CHECKED_IF_ENABLED -->>
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">备注说明</label>
+        <div class="layui-input-block">
+            <input type="text" name="description" class="layui-input" placeholder="可选" value="<!-- DESC -->">
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">自定义404提示</label>
+        <div class="layui-input-block">
+            <textarea name="custom_not_found_msg" class="layui-textarea" style="min-height:80px;" placeholder="可选，文件不存在时返回此内容，留空使用默认提示"><!-- NOT_FOUND_MSG --></textarea>
+        </div>
+    </div>
+</form>
+</script>
+
+<script>
+(function() {
+    var tbody = document.getElementById('sfr-table-body');
+    var paginationBar = document.getElementById('sfr-pagination-bar');
+    var pageInfo = document.getElementById('sfr-page-info');
+    var pageBtns = document.getElementById('sfr-page-btns');
+    var searchInput = document.getElementById('sfr-search-input');
+
+    var STATE = { page: 1, pageSize: {{ default_page_size|default:15 }}, total: 0, totalPages: 0, search: '' };
+
+    function loadList() {
+        tbody.innerHTML = '<tr><td colspan="6" class="sfr-empty">加载中...</td></tr>';
+        paginationBar.style.display = 'none';
+        var url = '/xiaoying_admin/static-file/api/list/?page=' + STATE.page + '&page_size=' + STATE.pageSize;
+        if (STATE.search) url += '&search=' + encodeURIComponent(STATE.search);
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                STATE.total = resp.total || 0;
+                STATE.totalPages = resp.total_pages || 0;
+                var items = resp.items || [];
+                if (items.length === 0) {
+                    var msg = STATE.search ? '没有匹配的规则' : '暂无规则，点击"新增路径"添加';
+                    tbody.innerHTML = '<tr><td colspan="6" class="sfr-empty">' + msg + '</td></tr>';
+                    renderPagination();
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < items.length; i++) {
+                    var r = items[i];
+                    var badge = r.is_active ? '<span class="sfr-badge sfr-badge-on">启用</span>' : '<span class="sfr-badge sfr-badge-off">禁用</span>';
+                    html += '<tr data-id="' + r.id + '">';
+                    html += '<td>' + r.id + '</td>';
+                    html += '<td><span class="sfr-path"><code class="sfr-path-code">/' + escHtml(r.path) + '</code></span></td>';
+                    html += '<td>' + badge + '</td>';
+                    html += '<td class="sfr-desc">' + escHtml(r.description || '-') + '</td>';
+                    html += '<td style="font-size:12px;color:#999;">' + (r.create_time || '') + '</td>';
+                    html += '<td>';
+                    html += '<button class="layui-btn layui-btn-xs layui-btn-primary btn-edit-sfr" title="编辑"><i class="fas fa-edit"></i></button> ';
+                    html += '<button class="layui-btn layui-btn-xs layui-btn-danger btn-delete-sfr" title="删除"><i class="fas fa-trash"></i></button>';
+                    html += '</td>';
+                    html += '</tr>';
+                }
+                tbody.innerHTML = html;
+                renderPagination();
+            })
+            .catch(function() {
+                tbody.innerHTML = '<tr><td colspan="6" class="sfr-empty" style="color:#FF5722;">加载失败</td></tr>';
+            });
+    }
+
+    function renderPagination() {
+        if (STATE.totalPages <= 1) { paginationBar.style.display = 'none'; return; }
+        paginationBar.style.display = 'flex';
+        pageInfo.textContent = '共 ' + STATE.total + ' 条，第 ' + STATE.page + '/' + STATE.totalPages + ' 页';
+
+        var html = '';
+        // 上一页
+        html += '<button class="page-prev" ' + (STATE.page <= 1 ? 'disabled' : '') + ' data-page="' + (STATE.page - 1) + '">&lsaquo;</button>';
+
+        // 页码按钮（显示前后 2 个）
+        var rangeStart = Math.max(1, STATE.page - 2);
+        var rangeEnd = Math.min(STATE.totalPages, STATE.page + 2);
+        if (rangeStart > 1) { html += '<button data-page="1">1</button>'; if (rangeStart > 2) html += '<button disabled>...</button>'; }
+        for (var p = rangeStart; p <= rangeEnd; p++) {
+            html += '<button class="' + (p === STATE.page ? 'active' : '') + '" data-page="' + p + '">' + p + '</button>';
+        }
+        if (rangeEnd < STATE.totalPages) { if (rangeEnd < STATE.totalPages - 1) html += '<button disabled>...</button>'; html += '<button data-page="' + STATE.totalPages + '">' + STATE.totalPages + '</button>'; }
+
+        // 下一页
+        html += '<button class="page-next" ' + (STATE.page >= STATE.totalPages ? 'disabled' : '') + ' data-page="' + (STATE.page + 1) + '">&rsaquo;</button>';
+        pageBtns.innerHTML = html;
+    }
+
+    // 分页按钮事件委托
+    pageBtns.addEventListener('click', function(e) {
+        var btn = e.target.closest('button[data-page]');
+        if (!btn || btn.disabled) return;
+        var p = parseInt(btn.getAttribute('data-page'));
+        if (p >= 1 && p <= STATE.totalPages && p !== STATE.page) {
+            STATE.page = p;
+            loadList();
+        }
+    });
+
+    // 跳页
+    document.getElementById('btn-goto-page').addEventListener('click', function() {
+        var input = document.getElementById('sfr-goto-input');
+        var p = parseInt(input.value);
+        if (p >= 1 && p <= STATE.totalPages && p !== STATE.page) {
+            STATE.page = p;
+            loadList();
+        }
+        input.value = '';
+    });
+    document.getElementById('sfr-goto-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { document.getElementById('btn-goto-page').click(); }
+    });
+
+    // 打开编辑/新增弹窗
+    function openForm(rule) {
+        rule = rule || {};
+        var tpl = document.getElementById('sfrFormTpl').innerHTML;
+        tpl = tpl.replace(/<!-- PATH -->/g, escHtml(rule.path || ''));
+        tpl = tpl.replace(/<!-- CHECKED_IF_ENABLED -->/g, rule.is_active !== false ? 'checked' : '');
+        tpl = tpl.replace(/<!-- DESC -->/g, escHtml(rule.description || ''));
+        tpl = tpl.replace(/<!-- NOT_FOUND_MSG -->/g, escHtml(rule.custom_not_found_msg || ''));
+
+        var title = rule.id ? '编辑路径: ' + rule.path : '新增静态文件路由';
+        var idx = layer.open({
+            type: 1,
+            title: title,
+            area: ['600px', '450px'],
+            shade: 0.3,
+            content: tpl,
+            btn: ['保存', '取消'],
+            yes: function() {
+                var form = document.getElementById('sfrFormEl');
+                var fd = new FormData(form);
+                var payload = {
+                    id: rule.id || null,
+                    path: (fd.get('path') || '').trim(),
+                    is_active: fd.get('is_active') === 'on',
+                    description: (fd.get('description') || '').trim(),
+                    custom_not_found_msg: (fd.get('custom_not_found_msg') || '').trim(),
+                };
+                if (!payload.path) { layer.msg('文件路径不能为空'); return; }
+                fetch('/xiaoying_admin/static-file/api/save/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.close(idx);
+                    layer.msg(resp.message || '保存成功', {icon:1});
+                    loadList();
+                }).catch(function() { layer.msg('保存失败', {icon:2}); });
+            },
+        });
+    }
+
+    // 表格事件委托
+    tbody.addEventListener('click', function(e) {
+        var tr = e.target.closest('tr[data-id]');
+        if (!tr) return;
+        var id = parseInt(tr.getAttribute('data-id'));
+
+        if (e.target.closest('.btn-edit-sfr')) {
+            var rule = {
+                id: id,
+                path: tr.querySelector('.sfr-path-code') ? tr.querySelector('.sfr-path-code').textContent.replace(/^\//, '') : '',
+                is_active: tr.querySelector('.sfr-badge-on') !== null,
+                description: tr.querySelector('.sfr-desc') ? tr.querySelector('.sfr-desc').textContent.trim() : '',
+            };
+            openForm(rule);
+            return;
+        }
+
+        if (e.target.closest('.btn-delete-sfr')) {
+            var pathEl = tr.querySelector('.sfr-path-code');
+            var pathText = pathEl ? pathEl.textContent : '此路径';
+            layer.confirm('确定删除 <code>' + pathText + '</code> 吗？', { icon: 3, btn: ['确定删除', '取消'], title: '确认删除' }, function(index) {
+                fetch('/xiaoying_admin/static-file/api/delete/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.close(index);
+                    layer.msg('已删除', {icon:1});
+                    // 删除后如果当前页没数据了，回到上一页
+                    if (tbody.querySelectorAll('tr[data-id]').length <= 1 && STATE.page > 1) {
+                        STATE.page--;
+                    }
+                    loadList();
+                }).catch(function() { layer.msg('删除失败', {icon:2}); });
+            });
+        }
+    });
+
+    document.getElementById('btn-refresh-sfr').addEventListener('click', function() { loadList(); });
+    document.getElementById('btn-add-sfr').addEventListener('click', function() { openForm({}); });
+    document.getElementById('btn-search-sfr').addEventListener('click', function() {
+        STATE.search = searchInput.value.trim();
+        STATE.page = 1;
+        loadList();
+    });
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { document.getElementById('btn-search-sfr').click(); }
+    });
+
+    loadList();
+})();
+</script>
+{% endblock %}

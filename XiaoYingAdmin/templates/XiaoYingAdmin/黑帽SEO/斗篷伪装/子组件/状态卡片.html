@@ -1,0 +1,23 @@
+{# ===== 状态卡片 ===== #}
+<div class="layui-card">
+    <div class="layui-card-header">
+        <i class="fas fa-mask"></i> 斗篷伪装（Cloaking）
+    </div>
+    <div class="layui-card-body">
+        <div class="layui-alert layui-alert-info">
+            <i class="fas fa-info-circle"></i>
+            斗篷伪装是一种黑帽 SEO 技术：根据访问者身份（<strong>搜索引擎爬虫 vs 真实用户</strong>）返回不同的内容。
+        </div>
+
+        {# ===== 当前状态指示器 ===== #}
+        <div style="margin-bottom:15px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+            <span style="font-size:16px;">
+                <i class="fas fa-circle" style="color:{% if config.is_enabled %}#5FB878{% else %}#FF7676{% endif %};"></i>
+                中间件状态：<strong>{% if config.is_enabled %}已启用{% else %}已关闭{% endif %}</strong>
+            </span>
+            <span><i class="fas fa-search"></i> 搜索引擎规则：<strong>{{ config.search_engines|length }}</strong> 条</span>
+            <span><i class="fas fa-robot"></i> 爬虫标识：<strong>{{ config.spider_keywords|length }}</strong> 条</span>
+            <span><i class="fas fa-external-link-alt"></i> 重定向状态码：<strong>{{ config.redirect_status_code }}</strong></span>
+        </div>
+    </div>
+</div>

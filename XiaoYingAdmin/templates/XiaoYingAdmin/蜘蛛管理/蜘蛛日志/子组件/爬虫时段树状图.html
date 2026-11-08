@@ -1,0 +1,114 @@
+{% comment %}蜘蛛日志 — 爬虫时段分布（CSS 水平堆叠条,直观展示各时段爬虫构成）
+   数据由 view 的 _compute_period_tree 预计算: period_stats.groups
+   每个 spider 携带 color 字段用于 bar segment 着色
+   注: 此组件不包裹 layui-card, 由外层 .chart-left 提供容器
+{% endcomment %}
+{% if period_stats.total == 0 %}
+<div style="text-align:center; padding:40px; color:#999;">
+    <i class="fas fa-info-circle"></i> 当前筛选条件下暂无爬虫访问数据
+</div>
+{% else %}
+<div class="pdist">
+    {% for g in period_stats.groups %}
+    <div class="pdist-row">
+        <div class="pdist-meta">
+            <span class="pdist-icon">{{ g.icon }}</span>
+            <span class="pdist-label">{{ g.label }}</span>
+            <span class="pdist-hours">{{ g.hour_range.0 }}:00–{{ g.hour_range.1 }}:00</span>
+            <span class="pdist-count">{{ g.count }}<i>次</i></span>
+            <span class="pdist-pct">{{ g.percent }}%</span>
+        </div>
+
+        {% if g.count > 0 %}
+        <div class="pdist-bar">
+            {% for s in g.spiders %}
+            <div class="pdist-seg" style="width:{{ s.percent }}%;background:{{ s.color }};"
+                 title="{{ s.name }}: {{ s.count }} 次 ({{ s.percent }}%)"></div>
+            {% endfor %}
+        </div>
+        <div class="pdist-legend">
+            {% for s in g.spiders %}
+            <span class="pdist-tag">
+                <span class="pdist-dot" style="background:{{ s.color }}"></span>
+                {{ s.name }} <em>{{ s.count }}</em>
+            </span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="pdist-empty">— 无爬虫访问 —</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.pdist {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 0;
+}
+.pdist-row {
+    background: #fafafa;
+    border-radius: 6px;
+    padding: 10px 14px;
+    border: 1px solid #eee;
+    transition: border-color 0.15s;
+}
+.pdist-row:hover { border-color: #ccc; }
+
+.pdist-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+.pdist-icon { font-size: 16px; }
+.pdist-label { font-weight: 600; color: #393D49; font-size: 13px; }
+.pdist-hours { font-size: 11px; color: #aaa; }
+.pdist-count { font-weight: 700; color: #1E9FFF; font-size: 15px; margin-left: auto; }
+.pdist-count i { font-style: normal; font-size: 11px; font-weight: normal; color: #999; margin-left: 2px; }
+.pdist-pct {
+    background: #f0f7ff; color: #1E9FFF; font-size: 11px; font-weight: 600;
+    padding: 1px 8px; border-radius: 10px;
+}
+
+.pdist-bar {
+    display: flex;
+    height: 18px;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #eee;
+}
+.pdist-seg {
+    height: 100%;
+    transition: opacity 0.15s;
+    cursor: help;
+    min-width: 2px;
+}
+.pdist-seg:hover { opacity: 0.8; }
+
+.pdist-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 5px;
+}
+.pdist-tag {
+    font-size: 11px;
+    color: #666;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pdist-tag em { font-style: normal; font-weight: 600; color: #393D49; }
+.pdist-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+
+.pdist-empty {
+    font-size: 12px; color: #bbb; padding: 2px 0 0 0;
+}
+</style>
+{% endif %}

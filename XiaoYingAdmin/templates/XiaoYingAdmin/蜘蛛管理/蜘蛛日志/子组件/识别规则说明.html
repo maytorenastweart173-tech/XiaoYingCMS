@@ -1,0 +1,31 @@
+{# 蜘蛛日志 — 识别规则说明（只读展示 + 跳转斗篷配置）#}
+<div class="layui-card">
+    <div class="layui-card-header">
+        <i class="fas fa-info-circle"></i> 爬虫识别规则
+        <span style="float:right; font-size:12px;">
+            <a href="{% url 'seo_cloak' %}" style="color:#1E9FFF;">
+                <i class="fas fa-edit"></i> 在"斗篷伪装"中编辑
+            </a>
+        </span>
+    </div>
+    <div class="layui-card-body">
+        <div class="layui-alert layui-alert-info" style="margin-bottom:10px;">
+            <i class="fas fa-info-circle"></i>
+            <strong>当前识别规则（与斗篷伪装共享）：</strong>
+            共 <strong>{{ spider_keywords|length }}</strong> 个关键字。任一关键字小写匹配 User-Agent 即可判定为爬虫。
+        </div>
+
+        <div style="line-height: 2;">
+            {% for kw in spider_keywords %}
+                <span class="layui-badge layui-bg-blue" style="margin: 2px;">{{ kw }}</span>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top:15px; font-size:12px; color:#999;">
+            <i class="fas fa-lightbulb"></i>
+            提示：识别逻辑由 <code>SeoCloakRule.is_spider(ua)</code> 实现，蜘蛛日志中间件调用此方法判断爬虫。
+            如需新增/修改关键字，请到
+            <a href="{% url 'seo_cloak' %}" style="color:#1E9FFF;">黑帽SEO → 斗篷伪装</a> 页面编辑。
+        </div>
+    </div>
+</div>

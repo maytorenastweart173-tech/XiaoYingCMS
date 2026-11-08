@@ -1,0 +1,163 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% block title %}AI 生成配置 - 多页面管理{% endblock %}
+{% block head %}
+<style>
+    .config-wrap { max-width:860px; margin:0 auto; }
+    .config-card { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:16px; overflow:hidden; }
+    .config-card-header { padding:14px 24px; border-bottom:1px solid #f0f0f0; font-size:15px; font-weight:600; color:#2D3748; background:#fafafa; }
+    .config-card-body { padding:20px 24px; }
+    .config-card-body .layui-form-label { width:140px; }
+    .config-card-body .layui-input-block { margin-left:160px; }
+    .config-card-body .layui-textarea { min-height:100px; }
+    .config-card-body .help-text { font-size:12px; color:#999; margin-top:4px; }
+    .config-card-body .form-group { margin-bottom:18px; }
+    .config-card-body textarea.system-prompt { min-height:320px; font-family:'Courier New',monospace; font-size:13px; line-height:1.6; }
+    .btn-bar { position:sticky; bottom:0; background:#fff; padding:14px 24px; border-top:1px solid #eee; text-align:center; margin-top:20px; border-radius:0 0 6px 6px; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="config-wrap">
+    <div style="margin-bottom:16px;">
+        <h2 style="margin:0;font-size:18px;color:#2D3748;">
+            <i class="fas fa-cog" style="color:#1E9FFF;margin-right:8px;"></i>AI 生成配置
+        </h2>
+        <p style="margin:6px 0 0;color:#999;font-size:13px;">
+            管理多页面 AI 生成所使用的提示词、模型参数等全局配置
+        </p>
+    </div>
+
+    <form class="layui-form" id="configForm">
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-robot" style="color:#1E9FFF;margin-right:6px;"></i> AI 调用参数</div>
+            <div class="config-card-body">
+                <div class="form-group">
+                    <label class="layui-form-label">API Key</label>
+                    <div class="layui-input-block">
+                        <div class="help-text" style="line-height:38px;">
+                            已统一使用 DeepSeek 官方 API，API Key 请在「核心设置 → 网站设置」中配置。
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="layui-form-label">最大 Token</label>
+                    <div class="layui-input-block">
+                        <input type="number" name="max_tokens" class="layui-input"
+                               value="{{ config.max_tokens }}" min="1024" max="131072">
+                        <div class="help-text">AI 返回的最大 token 数（32768=32k）</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="layui-form-label">请求超时(秒)</label>
+                    <div class="layui-input-block">
+                        <input type="number" name="timeout" class="layui-input"
+                               value="{{ config.timeout }}" min="30" max="600">
+                        <div class="help-text">API 调用超时时间，单位秒</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-file-alt" style="color:#5FB878;margin-right:6px;"></i> 生成参数</div>
+            <div class="config-card-body">
+                <div class="form-group">
+                    <label class="layui-form-label">最大页面数</label>
+                    <div class="layui-input-block">
+                        <input type="number" name="max_pages" class="layui-input"
+                               value="{{ config.max_pages }}" min="1" max="10">
+                        <div class="help-text">AI 一次生成的最大页面数（2-6 为宜）</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="layui-form-label">每页最大字符</label>
+                    <div class="layui-input-block">
+                        <input type="number" name="page_content_max_chars" class="layui-input"
+                               value="{{ config.page_content_max_chars }}" min="500" max="20000">
+                        <div class="help-text">每个页面 HTML 内容的字符上限，越大内容越丰富，但会增加生成时间</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-card">
+            <div class="config-card-header">
+                <i class="fas fa-scroll" style="color:#FFB800;margin-right:6px;"></i> 系统提示词
+                <span style="font-size:12px;color:#999;font-weight:400;margin-left:8px;">
+                    (留空使用内置默认提示词)
+                </span>
+            </div>
+            <div class="config-card-body">
+                <div class="form-group">
+                    <div class="layui-input-block" style="margin-left:0;">
+                        <textarea name="system_prompt" class="layui-textarea system-prompt"
+                                  placeholder="在此输入多页面 AI 生成的系统提示词...">{{ config.system_prompt }}</textarea>
+                        <div class="help-text">
+                            提示词中可使用 <code>{root_domain}</code> <code>{theme}</code> <code>{style}</code>
+                            等变量，生成时会自动替换为项目实际值。
+                            <a href="javascript:;" id="btnRestoreDefaultPrompt" style="color:#1E9FFF;margin-left:12px;">
+                                <i class="fas fa-undo"></i> 恢复默认提示词
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-bar">
+            <button type="submit" class="layui-btn layui-btn-normal" id="btnSave">
+                <i class="fas fa-save"></i> 保存配置
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block js %}
+<script>
+layui.use(['layer'], function() {
+    var layer = layui.layer;
+
+    document.getElementById('configForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var data = {};
+        var fields = ['max_tokens', 'timeout',
+                      'max_pages', 'page_content_max_chars', 'system_prompt'];
+        fields.forEach(function(name) {
+            var el = form.querySelector('[name="' + name + '"]');
+            if (el) data[name] = el.value;
+        });
+
+        var btn = document.getElementById('btnSave');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> 保存中...';
+
+        fetch('/xiaoying_admin/api/multi-page/config/save/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data),
+        }).then(function(r){return r.json()}).then(function(resp){
+            if (resp.error) {
+                layer.msg(resp.error, {icon:2});
+                return;
+            }
+            layer.msg('配置已保存', {icon:1,time:1200});
+        }).catch(function(err){
+            layer.msg('保存失败: ' + err.message, {icon:2});
+        }).finally(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> 保存配置';
+        });
+    });
+
+    // 恢复默认提示词（清空 = 使用内置默认提示词）
+    document.getElementById('btnRestoreDefaultPrompt').addEventListener('click', function() {
+        var ta = document.querySelector('[name="system_prompt"]');
+        layer.confirm('清空后将使用系统内置默认提示词，确定要恢复吗？', {icon:3, title:'确认'}, function(index) {
+            ta.value = '';
+            layer.close(index);
+            layer.msg('已恢复为默认提示词（保存后生效）', {icon:1, time:1500});
+        });
+    });
+});
+</script>
+{% endblock %}

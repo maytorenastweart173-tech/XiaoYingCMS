@@ -1,0 +1,108 @@
+<!-- 已保存页面列表 -->
+<style>
+.saved-pages { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.05); margin-top: 15px; }
+.saved-pages-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #e6e6e6; }
+.saved-pages-header h3 { margin: 0; font-size: 15px; color: #393D49; }
+.saved-page-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #f2f2f2; cursor: pointer; transition: background .15s; }
+.saved-page-item:hover { background: #f8f8f8; }
+.saved-page-item:last-child { border-bottom: none; }
+.saved-page-item .icon { width: 36px; height: 36px; background: #5fb878; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; flex-shrink: 0; margin-right: 12px; }
+.saved-page-item .info { flex: 1; overflow: hidden; }
+.saved-page-item .info .name { font-weight: 600; color: #333; }
+.saved-page-item .info .meta { font-size: 12px; color: #999; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.saved-page-item .time { flex-shrink: 0; font-size: 12px; color: #bbb; margin-left: 10px; }
+.saved-page-item .delete-btn { flex-shrink: 0; margin-left: 8px; display: none; }
+.saved-page-item:hover .delete-btn { display: inline-block; }
+.saved-empty { padding: 30px; text-align: center; color: #999; }
+.saved-pages .list-scroll { max-height: 480px; overflow-y: auto; overflow-x: hidden; }
+</style>
+
+<div class="saved-pages" id="saved-pages-widget">
+    <div class="saved-pages-header">
+        <h3><i class="fas fa-archive"></i> 已保存页面</h3>
+        <button class="layui-btn layui-btn-sm layui-btn-primary" id="btn-refresh-saved"><i class="fas fa-sync-alt"></i> 刷新</button>
+    </div>
+    <div id="saved-pages-list" class="list-scroll"></div>
+</div>
+
+<script>
+(function() {
+    var listEl = document.getElementById('saved-pages-list');
+
+    function loadSavedPages() {
+        listEl.innerHTML = '<div class="saved-empty">加载中...</div>';
+        fetch('/xiaoying_admin/api/pages/saved/?limit=10')
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                var list = resp.items || resp;
+                if (!list || list.length === 0) {
+                    listEl.innerHTML = '<div class="saved-empty">暂无已保存页面</div>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < list.length; i++) {
+                    var p = list[i];
+                    html += '<div class="saved-page-item" data-id="' + p.id + '">';
+                    html += '<div class="icon"><i class="fas fa-file-code"></i></div>';
+                    html += '<div class="info">';
+                    html += '<div class="name">' + escHtml(p.name) + '</div>';
+                    html += '<div class="meta">' + escHtml(p.input_content || '') + ' — <span style="color:#bbb;">' + (p.created_by || '未知用户') + '</span></div>';
+                    html += '</div>';
+                    html += '<div class="time">' + (p.create_time || '') + '</div>';
+                    html += '<button class="layui-btn layui-btn-xs layui-btn-danger delete-btn" data-id="' + p.id + '" title="删除"><i class="fas fa-trash"></i></button>';
+                    html += '</div>';
+                }
+                listEl.innerHTML = html;
+            })
+            .catch(function() {
+                listEl.innerHTML = '<div class="saved-empty" style="color:#FF5722;">加载失败</div>';
+            });
+    }
+
+    // 事件委托
+    listEl.addEventListener('click', function(e) {
+        var item = e.target.closest('.saved-page-item');
+        if (!item) return;
+        var id = parseInt(item.getAttribute('data-id'));
+
+        // 删除
+        if (e.target.closest('.delete-btn')) {
+            var name = item.querySelector('.name');
+            layer.confirm('确定删除「' + (name ? name.textContent : '此页面') + '」吗？', {
+                icon: 3, btn: ['确定删除', '取消'], title: '确认删除',
+            }, function(index) {
+                fetch('/xiaoying_admin/api/pages/saved/delete/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id }),
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.close(index);
+                    layer.msg('已删除', {icon:1});
+                    loadSavedPages();
+                }).catch(function() { layer.msg('删除失败', {icon:2}); });
+            });
+            return;
+        }
+
+        // 查看详情
+        fetch('/xiaoying_admin/api/pages/saved/' + id + '/')
+            .then(function(r) { return r.json(); })
+            .then(function(page) {
+                var content = '<div style="text-align:right; margin-bottom:8px;">';
+                content += '<button class="layui-btn layui-btn-sm layui-btn-primary copy-detail-btn"><i class="fas fa-copy"></i> 复制代码</button>';
+                content += '</div><pre style="padding:15px; max-height:480px; overflow:auto; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-all; border:1px solid #eee; border-radius:4px; background:#f9f9f9;">' + escHtml(page.html_content) + '</pre>';
+                layer.open({
+                    type: 1, title: page.name, area: ['800px', '580px'], shadeClose: true,
+                    content: content,
+                    success: function(layero) {
+                        layero.find('.copy-detail-btn').on('click', function() { copyClip(page.html_content); });
+                    },
+                });
+            });
+    });
+
+    document.getElementById('btn-refresh-saved').addEventListener('click', loadSavedPages);
+    loadSavedPages();
+})();
+</script>

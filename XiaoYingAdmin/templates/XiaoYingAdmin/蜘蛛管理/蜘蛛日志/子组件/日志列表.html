@@ -1,0 +1,478 @@
+{# 蜘蛛日志 — 日志列表（现代化风格） #}
+<div class="spider-table-wrap">
+<div class="spider-table-scroll">
+<table class="spider-table">
+    <thead>
+        <tr>
+            <th style="width:140px;">时间</th>
+            <th style="width:140px;">IP</th>
+            <th style="width:130px;">爬虫名</th>
+            <th style="width:55px;">方法</th>
+            <th>路径</th>
+            <th style="width:80px;">关联页面</th>
+            <th style="width:60px;">状态</th>
+            <th>来源</th>
+            <th style="width:55px;">操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if logs %}
+            {% for log in logs %}
+            <tr class="log-row"
+                data-id="{{ log.id }}"
+                data-time="{{ log.create_time|date:'Y-m-d H:i:s' }}"
+                data-ip="{{ log.ip }}"
+                data-spider="{{ log.spider_name }}"
+                data-method="{{ log.method }}"
+                data-path="{{ log.path }}"
+                data-status="{{ log.status_code|default_if_none:'' }}"
+                data-size="{{ log.response_size|default_if_none:'' }}"
+                data-referer="{{ log.referer }}"
+                data-ua="{{ log.user_agent }}"
+                data-page-name="{{ log.page_name }}"
+                data-matched-domain="{{ log.matched_domain }}">
+                <td><span class="log-time">{{ log.create_time|date:'Y-m-d H:i:s' }}</span></td>
+                <td>
+                    <span class="log-ip">
+                        <a href="javascript:;" onclick="event.stopPropagation();copyIp('{{ log.ip|escapejs }}', this)" title="点击复制 IP">
+                            {{ log.ip }}
+                        </a>
+                    </span>
+                    {% if log.ip in blocked_ips %}
+                        <span class="ip-ban-badge"><i class="fas fa-ban"></i> 已封禁</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.spider_name %}
+                        <span class="tag-spider">{{ log.spider_name }}</span>
+                    {% else %}
+                        <span class="tag-human">👤 真人</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="tag-method tag-method-{{ log.method|lower }}">{{ log.method }}</span>
+                </td>
+                <td>
+                    <code class="log-path" title="{{ log.path }}">{{ log.path|truncatechars:60 }}</code>
+                </td>
+                <td>
+                    {% if log.page_name %}
+                        <a href="/xiaoying_admin/pages/list/?search={{ log.page_name|urlencode }}"
+                           target="_blank" class="page-link">
+                            <i class="fas fa-file-alt"></i>
+                            {{ log.page_name|truncatechars:15 }}
+                        </a>
+                        {% if log.matched_domain %}
+                        <br><span class="log-domain">{{ log.matched_domain|truncatechars:20 }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="log-empty">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.status_code %}
+                        <span class="log-status" style="color:{% if log.status_code < 300 %}#2ecc71{% elif log.status_code < 400 %}#3498db{% elif log.status_code < 500 %}#f39c12{% else %}#e74c3c{% endif %};">
+                            {{ log.status_code }}
+                        </span>
+                    {% else %}
+                        <span class="log-empty">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.referer %}
+                        <span class="log-referer" title="{{ log.referer }}">{{ log.referer|truncatechars:40 }}</span>
+                    {% else %}
+                        <span class="log-empty">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-dropdown" data-ip="{{ log.ip|escapejs }}">
+                        <button class="dropdown-trigger" title="更多操作">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu">
+                            <a href="javascript:;" class="dropdown-item dropdown-detail" data-ip="{{ log.ip|escapejs }}">
+                                <i class="fas fa-info-circle"></i> 查看详情
+                            </a>
+                            <a href="javascript:;" class="dropdown-item dropdown-copy-ip" data-ip="{{ log.ip|escapejs }}">
+                                <i class="fas fa-copy"></i> 复制 IP
+                            </a>
+                            <a href="javascript:;" class="dropdown-item dropdown-detect" data-ip="{{ log.ip|escapejs }}">
+                                <i class="fas fa-shield-alt"></i> 检测爬虫
+                            </a>
+                            {% if log.ip in blocked_ips %}
+                            <a href="javascript:;" class="dropdown-item dropdown-danger dropdown-unban" data-ip="{{ log.ip|escapejs }}">
+                                <i class="fas fa-unlock"></i> 取消封禁
+                            </a>
+                            {% else %}
+                            <a href="javascript:;" class="dropdown-item dropdown-danger dropdown-ban" data-ip="{{ log.ip|escapejs }}">
+                                <i class="fas fa-ban"></i> 封禁此 IP
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="9" style="text-align:center; color:#bbb; padding:48px 20px;">
+                    <i class="fas fa-inbox" style="font-size:42px; display:block; margin-bottom:12px; color:#e0e0e0;"></i>
+                    当前筛选条件下暂无访问记录
+                </td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+</div>
+</div>
+
+<style>
+/* ===== 表格容器 ===== */
+.spider-table-wrap {
+    background: #fff; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.03);
+    border: 1px solid #f0f0f0;
+}
+.spider-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ===== 表格 ===== */
+.spider-table {
+    width: 100%; border-collapse: collapse; font-size: 12px; min-width: 650px;
+}
+.spider-table thead { position: sticky; top: 0; z-index: 10; }
+.spider-table th {
+    background: #f8f9fa; text-align: left; padding: 8px 8px;
+    font-weight: 600; font-size: 11px; color: #666;
+    letter-spacing: .3px; border-bottom: 2px solid #e8e8e8; white-space: nowrap;
+}
+.spider-table td {
+    padding: 7px 8px; border-bottom: 1px solid #f3f3f3; color: #444; transition: background .12s;
+}
+.spider-table tbody tr { transition: background .1s; cursor: pointer; }
+.spider-table tbody tr:hover td { background: #f0faf4; }
+.spider-table tbody tr:last-child td { border-bottom: none; }
+
+/* ===== 单元格元素 ===== */
+.log-time { font-size: 11px; color: #999; font-family: 'Consolas', monospace; }
+.log-ip a { color: #1E9FFF; text-decoration: none; font-family: 'Consolas', monospace; font-size: 12px; }
+.log-ip a:hover { color: #5FB878; }
+.ip-ban-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; padding: 1px 5px; border-radius: 3px;
+    margin-left: 4px; background: #fce4ec; color: #c62828; border: 1px solid #f8bbd0;
+    font-weight: 500; cursor: default;
+}
+.tag-spider {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    background: #fff3e0; color: #e65100; font-size: 10px; font-weight: 600;
+}
+.tag-human { font-size: 11px; color: #888; }
+.tag-method {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; font-weight: 600; text-align: center; min-width: 32px;
+}
+.tag-method-get { background: #e3f2fd; color: #1565c0; }
+.tag-method-post { background: #e8f5e9; color: #2e7d32; }
+.tag-method-head { background: #f5f5f5; color: #666; }
+.log-path {
+    font-size: 11px; color: #393D49; background: #f6f6f6; padding: 1px 5px;
+    border-radius: 3px; font-family: 'Consolas', monospace;
+}
+.page-link { color: #5FB878; text-decoration: none; font-size: 11px; }
+.page-link:hover { text-decoration: underline; }
+.page-link i { font-size: 10px; margin-right: 2px; }
+.log-domain { font-size: 9px; color: #ccc; }
+.log-status { font-weight: 600; font-size: 12px; }
+.log-size { font-size: 11px; color: #999; }
+.log-referer { font-size: 11px; color: #999; }
+.log-ua { font-size: 11px; color: #999; cursor: help; }
+.log-empty { color: #ddd; font-size: 11px; }
+
+/* ===== 操作下拉菜单 ===== */
+.action-dropdown { position: relative; display: inline-block; }
+.action-dropdown .dropdown-trigger {
+    width: 26px; height: 26px; padding: 0; border: 1px solid #e0e0e0;
+    border-radius: 5px; background: #fff; color: #999; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .15s;
+}
+.action-dropdown .dropdown-trigger:hover {
+    border-color: #5FB878; color: #5FB878; background: #f8fdf9;
+}
+.action-dropdown .dropdown-menu {
+    display: none; position: absolute; right: 0; top: 100%; z-index: 999;
+    min-width: 145px; background: #fff; border: 1px solid #e8e8e8;
+    border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.14); padding: 5px 0; margin-top: 4px;
+}
+.action-dropdown.open .dropdown-menu { display: block; animation: dropIn .15s ease; }
+@keyframes dropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.action-dropdown .dropdown-item {
+    display: flex; align-items: center; gap: 9px; padding: 8px 16px;
+    color: #393D49; font-size: 13px; text-decoration: none;
+    transition: background .1s; cursor: pointer; white-space: nowrap;
+}
+.action-dropdown .dropdown-item:hover { background: #f0f7f0; color: #5FB878; }
+.action-dropdown .dropdown-item i { width: 16px; text-align: center; color: #999; font-size: 13px; }
+.action-dropdown .dropdown-item:hover i { color: #5FB878; }
+.action-dropdown .dropdown-item.dropdown-danger { color: #d32f2f; }
+.action-dropdown .dropdown-item.dropdown-danger:hover { background: #fff5f5; color: #d32f2f; }
+.action-dropdown .dropdown-item.dropdown-danger:hover i { color: #d32f2f; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+    .spider-table th, .spider-table td { padding: 8px 8px; font-size: 12px; }
+    .log-time { font-size: 11px; }
+    .log-ip a { font-size: 12px; }
+    .action-dropdown .dropdown-trigger { width: 28px; height: 28px; }
+}
+</style>
+
+<script>
+// ===== 已封禁 IP 列表 =====
+var BLOCKED_IPS = [
+    {% for ip in blocked_ips %}'{{ ip|escapejs }}',{% endfor %}
+];
+
+// ===== 工具函数 =====
+function escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+// 格式化大小
+function fmtSize(bytes) {
+    if (!bytes && bytes !== 0) return '-';
+    var n = Number(bytes);
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+}
+// 状态码颜色
+function statusColor(code) {
+    if (!code) return '#999';
+    var c = Number(code);
+    if (c < 300) return '#5FB878';
+    if (c < 400) return '#1E9FFF';
+    if (c < 500) return '#FFB800';
+    return '#FF7676';
+}
+// 相对时间
+function timeAgo(timeStr) {
+    if (!timeStr) return '';
+    var parts = timeStr.split(/[- :]/);
+    var d = new Date(parts[0], parts[1]-1, parts[2], parts[3]||0, parts[4]||0, parts[5]||0);
+    var diff = Date.now() - d.getTime();
+    if (diff < 0) return '';
+    var sec = Math.floor(diff / 1000);
+    var min = Math.floor(sec / 60);
+    var hr  = Math.floor(min / 60);
+    var day = Math.floor(hr / 24);
+    var mon = Math.floor(day / 30);
+    var yr  = Math.floor(mon / 12);
+    if (yr > 0) return yr + '年前';
+    if (mon > 0) return mon + '个月前';
+    if (day > 0) return day + '天前';
+    if (hr > 0) return hr + '小时前';
+    if (min > 0) return min + '分钟前';
+    return '刚刚';
+}
+
+// ===== 日志行点击查看详情 =====
+document.addEventListener('click', function(e) {
+    // 点击下拉菜单内不触发行点击
+    if (e.target.closest('.action-dropdown')) return;
+    var row = e.target.closest('.log-row');
+    if (!row) return;
+    var data = row.dataset;
+
+    var html = '<div style="padding:10px 20px; line-height:1.8; font-size:13px;">' +
+        '<table style="width:100%; border-collapse:collapse;">' +
+        '<tr><td style="width:80px; color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">ID</td>' +
+        '<td style="padding:4px 0;">' + escHtml(data.id) + '</td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">时间</td>' +
+        '<td style="padding:4px 0;">' + escHtml(data.time) + ' <span style="color:#999; font-size:12px;">（' + timeAgo(data.time) + '）</span></td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">IP</td>' +
+        '<td style="padding:4px 0;">' + escHtml(data.ip) + ' <a href="javascript:;" onclick="copyClip(\'' + data.ip.replace(/'/g, "\\'") + '\', \'已复制 IP\')" style="color:#1E9FFF; font-size:12px; text-decoration:underline;">复制</a>' +
+        ' <button class="layui-btn layui-btn-xs layui-btn-normal" onclick="detectIp(\'' + data.ip.replace(/'/g, "\\'") + '\', this)" title="检测是否为爬虫"><i class="fas fa-shield-alt"></i> 检测</button></td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">访问者</td>' +
+        '<td style="padding:4px 0;">' + (data.spider ? '<span style="color:#FF9800;">🕷️ ' + escHtml(data.spider) + '</span>' : '<span style="color:#666;">👤 真人</span>') + '</td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">方法</td>' +
+        '<td style="padding:4px 0;"><span class="layui-badge' +
+        (data.method === 'GET' ? ' layui-bg-blue' : data.method === 'POST' ? ' layui-bg-green' : ' layui-bg-gray') +
+        '">' + escHtml(data.method) + '</span></td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">路径</td>' +
+        '<td style="padding:4px 0; word-break:break-all;"><code style="font-size:12px; background:#f6f6f6; padding:2px 6px; border-radius:3px;">' + escHtml(data.matchedDomain ? 'http://' + data.matchedDomain + data.path : data.path) + '</code></td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">状态码</td>' +
+        '<td style="padding:4px 0;"><span style="color:' + statusColor(data.status) + '; font-weight:bold;">' + (data.status || '-') + '</span></td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">响应大小</td>' +
+        '<td style="padding:4px 0;">' + fmtSize(data.size) + '</td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">关联页面</td>' +
+        '<td style="padding:4px 0;">' + (data.pageName ? '<a href="/xiaoying_admin/pages/list/?search=' + encodeURIComponent(data.pageName) + '" target="_blank" style="color:#5FB878;text-decoration:none;" title="点击查看页面详情"><i class="fas fa-file-alt" style="font-size:11px;"></i> ' + escHtml(data.pageName) + '</a><br><small style="color:#bbb;">' + escHtml(data.matchedDomain) + '</small>' : '<span style="color:#ccc;">未匹配</span>') + '</td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">来源</td>' +
+        '<td style="padding:4px 0; word-break:break-all;">' + (data.referer ? escHtml(data.referer) : '<span style="color:#ccc;">直接访问 / 无来源</span>') + '</td></tr>' +
+        '<tr><td style="color:#999; white-space:nowrap; vertical-align:top; padding:4px 8px 4px 0;">User-Agent</td>' +
+        '<td style="padding:4px 0; word-break:break-all;"><small style="color:#666;">' + escHtml(data.ua) + '</small></td></tr>' +
+        '</table></div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-info-circle"></i> 日志详情 #' + escHtml(data.id),
+        area: ['640px', '520px'],
+        shadeClose: true,
+        content: html,
+        btn: ['关闭'],
+        yes: function(index) { layer.close(index); },
+    });
+});
+
+// ===== 下拉菜单交互 + 操作项 =====
+document.addEventListener('click', function(e) {
+    // 切换下拉菜单
+    var trigger = e.target.closest('.action-dropdown .dropdown-trigger');
+    if (trigger) {
+        var dropdown = trigger.closest('.action-dropdown');
+        document.querySelectorAll('.action-dropdown.open').forEach(function(d) {
+            if (d !== dropdown) d.classList.remove('open');
+        });
+        dropdown.classList.toggle('open');
+        return;
+    }
+
+    // 点击下拉菜单外部 → 关闭
+    if (!e.target.closest('.action-dropdown')) {
+        document.querySelectorAll('.action-dropdown.open').forEach(function(d) {
+            d.classList.remove('open');
+        });
+        return; // 不在下拉菜单内，不处理下拉操作项
+    }
+
+    // --- 以下在下拉菜单内部 ---
+
+    // 查看详情
+    var detailBtn = e.target.closest('.dropdown-detail');
+    if (detailBtn) {
+        detailBtn.closest('.action-dropdown').classList.remove('open');
+        var row = detailBtn.closest('.log-row');
+        if (row) row.click();
+        return;
+    }
+
+    // 复制 IP
+    var copyBtn = e.target.closest('.dropdown-copy-ip');
+    if (copyBtn) {
+        copyBtn.closest('.action-dropdown').classList.remove('open');
+        var ip = copyBtn.getAttribute('data-ip');
+        if (ip) copyClip(ip, '已复制 IP: ' + ip);
+        return;
+    }
+
+    // 检测爬虫
+    var detectBtn = e.target.closest('.dropdown-detect');
+    if (detectBtn) {
+        detectBtn.closest('.action-dropdown').classList.remove('open');
+        var ip = detectBtn.getAttribute('data-ip');
+        if (ip) detectIp(ip, detectBtn);
+        return;
+    }
+
+    // 封禁 IP
+    var banBtn = e.target.closest('.dropdown-ban');
+    if (banBtn) {
+        banBtn.closest('.action-dropdown').classList.remove('open');
+        var ip = banBtn.getAttribute('data-ip');
+        if (ip) blockIp(ip);
+        return;
+    }
+
+    // 取消封禁
+    var unbanBtn = e.target.closest('.dropdown-unban');
+    if (unbanBtn) {
+        unbanBtn.closest('.action-dropdown').classList.remove('open');
+        var ip = unbanBtn.getAttribute('data-ip');
+        if (ip) unbanIp(ip);
+        return;
+    }
+});
+
+// ===== 封禁 IP =====
+function blockIp(ip) {
+    if (!ip) return;
+    if (BLOCKED_IPS.indexOf(ip) !== -1) {
+        if (window.layer) layer.msg('❌ ' + ip + ' 已被封禁，无需重复操作', { icon: 0, time: 2500 });
+        return;
+    }
+    if (window.layer) {
+        layer.confirm(
+            '确定要封禁 IP <strong>' + ip + '</strong> 吗？<br><small style="color:#999;">将创建一条防火墙 IP 黑名单规则。</small>',
+            { icon: 0, title: '封禁确认', btn: ['确认封禁', '取消'] },
+            function(index) {
+                var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+                fetch('/xiaoying_admin/api/firewall/save/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf ? csrf.value : ''},
+                    body: JSON.stringify({
+                        rule_type: 'ip_block',
+                        value: ip,
+                        is_active: true,
+                        response_type: 'forbidden',
+                        description: '从蜘蛛日志一键封禁',
+                    }),
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.ok) {
+                        if (window.layer) layer.msg('✅ 已封禁 ' + ip, { icon: 1, time: 2000 });
+                        if (BLOCKED_IPS.indexOf(ip) === -1) BLOCKED_IPS.push(ip);
+                    } else {
+                        if (window.layer) layer.msg(data.error || '封禁失败', { icon: 2 });
+                    }
+                })
+                .catch(function() {
+                    if (window.layer) layer.msg('请求失败', { icon: 2 });
+                });
+                layer.close(index);
+            }
+        );
+    }
+}
+
+// ===== 取消封禁 IP =====
+function unbanIp(ip) {
+    if (!ip) return;
+    fetch('/xiaoying_admin/api/firewall/list/')
+        .then(function(res) { return res.json(); })
+        .then(function(res) {
+            if (!res.ok) { throw new Error(res.error || '查询防火墙规则失败'); }
+            var rule = null;
+            for (var i = 0; i < res.data.length; i++) {
+                if (res.data[i].value === ip && res.data[i].rule_type === 'ip_block') {
+                    rule = res.data[i];
+                    break;
+                }
+            }
+            if (!rule) {
+                if (window.layer) layer.msg('未找到该 IP 的封禁规则', {icon:5});
+                return;
+            }
+            fetch('/xiaoying_admin/api/firewall/' + rule.id + '/delete/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '' },
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(delRes) {
+                if (delRes.ok) {
+                    if (window.layer) layer.msg('已取消封禁：' + ip, {icon:1});
+                    var idx = BLOCKED_IPS.indexOf(ip);
+                    if (idx !== -1) BLOCKED_IPS.splice(idx, 1);
+                    setTimeout(function() { location.reload(); }, 600);
+                } else {
+                    if (window.layer) layer.msg(delRes.error || '取消防禁失败', {icon:5});
+                }
+            })
+            .catch(function() {
+                if (window.layer) layer.msg('网络错误', {icon:5});
+            });
+        })
+        .catch(function(err) {
+            if (window.layer) layer.msg(err.message || '查询失败', {icon:5});
+        });
+}
+</script>

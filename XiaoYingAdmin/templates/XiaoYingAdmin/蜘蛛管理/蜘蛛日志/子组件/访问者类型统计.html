@@ -1,0 +1,194 @@
+{% comment %}蜘蛛日志 — 访问者类型分布（SVG 环形图 + 紧凑图例,可点击过滤）
+   互斥 3 类(用于环形图): 蜘蛛 / 真人-直接 / 真人-有来源
+   过滤 4 项(用于点击): 全部 / 蜘蛛 / 真人(human) / 直接访问(direct)
+   注: 此组件不包裹 layui-card, 由外层 layui-colla-item 提供容器
+   SVG 参数由 view 的 _compute_who_counts 预计算(counts.svg.{l1,l2,l3,o1,o2,o3,c})
+{% endcomment %}
+<div class="who-panel">
+    {# ===== 左侧 SVG 环形图 ===== #}
+    <div class="who-donut">
+        <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+            {% if counts.total == 0 %}
+                {# 空数据:灰色虚线圈 #}
+                <circle cx="100" cy="100" r="80" fill="none"
+                        stroke="#eee" stroke-width="24"
+                        stroke-dasharray="8 6"/>
+                <text x="100" y="98" text-anchor="middle"
+                      font-size="13" fill="#999">暂无数据</text>
+            {% else %}
+                {# 背景圈 #}
+                <circle cx="100" cy="100" r="80" fill="none"
+                        stroke="#f5f5f5" stroke-width="24"/>
+
+                {# 段1: 蜘蛛 (红) #}
+                <circle cx="100" cy="100" r="80" fill="none"
+                        stroke="#FF7676" stroke-width="24"
+                        stroke-dasharray="{{ counts.svg.l1 }} {{ counts.svg.c }}"
+                        stroke-dashoffset="{{ counts.svg.o1 }}"
+                        transform="rotate(-90 100 100)"
+                        style="transition: stroke-dasharray 0.5s;"/>
+
+                {# 段2: 真人-直接 (黄) #}
+                <circle cx="100" cy="100" r="80" fill="none"
+                        stroke="#FFB800" stroke-width="24"
+                        stroke-dasharray="{{ counts.svg.l2 }} {{ counts.svg.c }}"
+                        stroke-dashoffset="{{ counts.svg.o2 }}"
+                        transform="rotate(-90 100 100)"
+                        style="transition: stroke-dasharray 0.5s;"/>
+
+                {# 段3: 真人-有来源 (绿) #}
+                <circle cx="100" cy="100" r="80" fill="none"
+                        stroke="#5FB878" stroke-width="24"
+                        stroke-dasharray="{{ counts.svg.l3 }} {{ counts.svg.c }}"
+                        stroke-dashoffset="{{ counts.svg.o3 }}"
+                        transform="rotate(-90 100 100)"
+                        style="transition: stroke-dasharray 0.5s;"/>
+
+                {# 中心文字: 总数 #}
+                <text x="100" y="92" text-anchor="middle"
+                      font-size="28" font-weight="bold" fill="#393D49">{{ counts.total }}</text>
+                <text x="100" y="112" text-anchor="middle"
+                      font-size="11" fill="#999">总访问</text>
+            {% endif %}
+        </svg>
+    </div>
+
+    {# ===== 右侧紧凑图例 ===== #}
+    <div class="who-legend">
+        <div class="who-legend-title">
+            <i class="fas fa-filter"></i> 点击分类快速过滤
+            <span style="color:#999; font-weight:normal; margin-left:6px;">
+                当前: <strong style="color:#1E9FFF;">{{ who_label }}</strong>
+            </span>
+        </div>
+
+        <a href="?{{ base_query_no_who }}"
+           class="who-leg-item {% if not current_who %}who-leg-active{% endif %}">
+            <span class="who-leg-dot" style="background:#1E9FFF;"></span>
+            <span class="who-leg-name">全部访问</span>
+            <span class="who-leg-count">{{ counts.total }}</span>
+            <span class="who-leg-pct">100%</span>
+        </a>
+
+        <a href="?{{ base_query_with_who_spider }}"
+           class="who-leg-item {% if current_who == 'spider' %}who-leg-active{% endif %}">
+            <span class="who-leg-dot" style="background:#FF7676;"></span>
+            <span class="who-leg-name">🕷 蜘蛛访问</span>
+            <span class="who-leg-count">{{ counts.spider }}</span>
+            <span class="who-leg-pct">{{ counts.spider_pct }}%</span>
+        </a>
+
+        <a href="?{{ base_query_with_who_human }}"
+           class="who-leg-item {% if current_who == 'human' %}who-leg-active{% endif %}">
+            <span class="who-leg-dot" style="background:#5FB878;"></span>
+            <span class="who-leg-name">👤 真人访问<span class="who-leg-sub">（含直接）</span></span>
+            <span class="who-leg-count">{{ counts.human }}</span>
+            <span class="who-leg-pct">{{ counts.human_pct }}%</span>
+        </a>
+
+        <a href="?{{ base_query_with_who_direct }}"
+           class="who-leg-item {% if current_who == 'direct' %}who-leg-active{% endif %}">
+            <span class="who-leg-dot" style="background:#FFB800;"></span>
+            <span class="who-leg-name">🔗 直接访问<span class="who-leg-sub">（无 Referer）</span></span>
+            <span class="who-leg-count">{{ counts.direct }}</span>
+            <span class="who-leg-pct">{{ counts.direct_pct }}%</span>
+        </a>
+
+        <div class="who-leg-hint">
+            <i class="fas fa-info-circle"></i>
+            环形图互斥分类: 红=蜘蛛 · 黄=真人直接 · 绿=真人有来源
+        </div>
+    </div>
+</div>
+
+<style>
+/* ===== 访问者类型分布面板（环形图 + 图例竖向紧凑布局） ===== */
+.who-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 2px 0;
+}
+.who-donut {
+    flex: 0 0 140px;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto;
+}
+.who-donut svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.who-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.who-legend-title {
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+    margin-bottom: 2px;
+}
+.who-leg-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #393D49;
+    font-size: 12px;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+}
+.who-leg-item:hover {
+    background: #f7f7f7;
+    text-decoration: none;
+    border-color: #e6e6e6;
+}
+.who-leg-active {
+    background: #f0f7ff;
+    border-color: #1E9FFF;
+    font-weight: 500;
+}
+.who-leg-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.who-leg-name {
+    flex: 1;
+    font-size: 12px;
+}
+.who-leg-sub {
+    color: #999;
+    font-size: 10px;
+    margin-left: 3px;
+    font-weight: normal;
+}
+.who-leg-count {
+    font-weight: bold;
+    color: #393D49;
+    min-width: 30px;
+    text-align: right;
+    font-size: 12px;
+}
+.who-leg-pct {
+    color: #999;
+    font-size: 11px;
+    min-width: 36px;
+    text-align: right;
+}
+.who-leg-hint {
+    font-size: 10px;
+    color: #bbb;
+    text-align: center;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px dashed #f0f0f0;
+    line-height: 1.4;
+}
+</style>

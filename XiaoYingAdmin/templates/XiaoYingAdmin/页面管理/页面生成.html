@@ -1,0 +1,17 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+
+{% block title %}页面生成{% endblock %}
+{% block body %}
+
+{% include 'XiaoYingAdmin/页面管理/子组件/页面生成/生成器面板.html' %}
+
+<div style="display:flex; gap:15px; margin-top:15px;">
+    <div style="flex:1; min-width:0; max-width:50%;">
+        {% include 'XiaoYingAdmin/页面管理/子组件/页面生成/提示词管理.html' %}
+    </div>
+    <div style="flex:1; min-width:0; max-width:50%;">
+        {% include 'XiaoYingAdmin/页面管理/子组件/页面生成/已保存页面.html' %}
+    </div>
+</div>
+
+{% endblock %}

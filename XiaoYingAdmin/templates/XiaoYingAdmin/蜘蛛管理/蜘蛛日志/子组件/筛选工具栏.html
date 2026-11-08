@@ -1,0 +1,188 @@
+{# 蜘蛛日志 — 筛选工具栏（GET form）#}
+<form method="get" action="" class="spider-filter-form" id="spider-log-filter-form">
+    <div class="filter-inner">
+
+        <span class="filter-label"><i class="fas fa-filter"></i> 筛选：</span>
+
+        {# ===== 时间段 ===== #}
+        <select name="days" class="sf-select">
+            <option value="today" {% if days == 'today' %}selected{% endif %}>仅今天</option>
+            <option value="1d"    {% if days == '1d' %}selected{% endif %}>近 1 天</option>
+            <option value="3d"    {% if days == '3d' %}selected{% endif %}>近 3 天</option>
+            <option value="7d"    {% if days == '7d' or not days %}selected{% endif %}>近 7 天</option>
+            <option value="30d"   {% if days == '30d' %}selected{% endif %}>近 30 天</option>
+            <option value="all"   {% if days == 'all' %}selected{% endif %}>全部</option>
+        </select>
+
+        {# ===== 访问者类型 ===== #}
+        <select name="who" class="sf-select">
+            <option value=""        {% if not current_who %}selected{% endif %}>所有访问者</option>
+            <option value="spider"  {% if current_who == 'spider'  %}selected{% endif %}>🕷 仅蜘蛛</option>
+            <option value="human"   {% if current_who == 'human'   %}selected{% endif %}>👤 仅真人</option>
+            <option value="direct"  {% if current_who == 'direct'  %}selected{% endif %}>🔗 仅直接访问</option>
+        </select>
+
+        {# ===== 爬虫名 ===== #}
+        <select name="spider" class="sf-select">
+            <option value="">所有爬虫</option>
+            {% for s in all_spider_names %}
+                <option value="{{ s }}" {% if current_spider == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+
+        {# ===== IP ===== #}
+        <div class="sf-search-wrap">
+            <span class="sf-search-icon"><i class="fas fa-search"></i></span>
+            <input type="text" name="ip" value="{{ current_ip }}" placeholder="按 IP 过滤" class="sf-input">
+        </div>
+
+        {# ===== 来源（referer 模糊搜索） ===== #}
+        <div class="sf-search-wrap">
+            <span class="sf-search-icon"><i class="fas fa-link"></i></span>
+            <input type="text" name="referer" value="{{ current_referer }}" placeholder="按来源过滤" class="sf-input">
+        </div>
+
+        {# ===== 方法 ===== #}
+        <select name="method" class="sf-select" style="width:100px;">
+            <option value="">所有方法</option>
+            <option value="GET"    {% if current_method == 'GET' %}selected{% endif %}>GET</option>
+            <option value="POST"   {% if current_method == 'POST' %}selected{% endif %}>POST</option>
+            <option value="HEAD"   {% if current_method == 'HEAD' %}selected{% endif %}>HEAD</option>
+        </select>
+
+        <button type="submit" class="sf-btn sf-btn-primary">
+            <i class="fas fa-search"></i> 应用
+        </button>
+
+        <label class="sf-checkbox-label">
+            <input type="checkbox" name="hide_blocked" value="1"
+                onchange="this.form.submit();"
+                {% if hide_blocked %}checked{% endif %}>
+            <span class="sf-checkbox-box"></span>
+            <i class="fas fa-shield-alt" style="color:#e74c3c;font-size:11px;"></i>
+            排除已封禁
+        </label>
+
+        <a href="{% url 'spider_logs' %}" class="sf-btn sf-btn-outline">
+            <i class="fas fa-undo"></i> 重置
+        </a>
+
+        <span class="sf-spacer"></span>
+
+        {# ===== 每页条数 ===== #}
+        <span class="sf-page-size-label"><i class="fas fa-list-ol"></i> 每页</span>
+        <select name="page_size" class="sf-select sf-page-size" id="spider-log-page-size"
+                onchange="document.getElementById('spider-log-filter-form').submit();">
+            {% for n in allowed_page_sizes %}
+                <option value="{{ n }}" {% if page_size == n %}selected{% endif %}>{{ n }}</option>
+            {% endfor %}
+        </select>
+        <span class="sf-page-size-label">条</span>
+
+        <a href="{% url 'spider_logs_api_export' %}?days={{ days }}{% if current_who %}&who={{ current_who }}{% endif %}{% if current_spider %}&spider={{ current_spider }}{% endif %}{% if current_ip %}&ip={{ current_ip }}{% endif %}{% if current_method %}&method={{ current_method }}{% endif %}{% if current_referer %}&referer={{ current_referer|urlencode }}{% endif %}"
+           class="sf-btn sf-btn-warm">
+            <i class="fas fa-file-csv"></i> 导出 CSV
+        </a>
+
+        <button type="button" class="sf-btn sf-btn-danger" onclick="clearAllLogs()">
+            <i class="fas fa-trash"></i> 清空全部
+        </button>
+
+    </div>
+</form>
+
+<style>
+/* ===== 筛选工具栏（现代化卡片风格） ===== */
+.spider-filter-form {
+    background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.03);
+    border: 1px solid #f0f0f0;
+}
+.spider-filter-form .filter-inner {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.spider-filter-form .filter-label {
+    color: #666; font-size: 13px; font-weight: 500; white-space: nowrap;
+}
+
+/* 统一下拉框 */
+.sf-select {
+    height: 34px; padding: 0 10px;
+    border: 1px solid #e0e0e0; border-radius: 6px;
+    background: #fafafa; color: #393D49; font-size: 13px;
+    cursor: pointer; outline: none; transition: all .2s;
+}
+.sf-select:hover { border-color: #5FB878; }
+.sf-select:focus { border-color: #5FB878; box-shadow: 0 0 0 3px rgba(94,184,120,.12); background: #fff; }
+.sf-page-size { width: 75px; }
+
+/* 搜索框 */
+.sf-search-wrap { position: relative; flex: 1; min-width: 140px; max-width: 180px; }
+.sf-search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: #bbb; font-size: 12px; pointer-events: none;
+}
+.sf-input {
+    width: 100%; height: 34px; padding: 0 10px 0 30px;
+    border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;
+    background: #fafafa; outline: none; transition: all .2s; box-sizing: border-box;
+}
+.sf-input:focus { border-color: #5FB878; box-shadow: 0 0 0 3px rgba(94,184,120,.12); background: #fff; }
+
+/* 按钮 */
+.sf-btn {
+    height: 34px; padding: 0 16px; border: none; border-radius: 6px;
+    font-size: 13px; cursor: pointer; transition: all .18s;
+    display: inline-flex; align-items: center; gap: 5px;
+    white-space: nowrap;
+}
+.sf-btn-primary { background: #5FB878; color: #fff; }
+.sf-btn-primary:hover { background: #4aa86a; }
+.sf-btn-primary:active { transform: scale(.97); }
+.sf-btn-outline {
+    background: #fff; color: #666; border: 1px solid #d0d0d0;
+}
+.sf-btn-outline:hover { border-color: #5FB878; color: #5FB878; }
+.sf-btn-warm { background: #FFB800; color: #fff; }
+.sf-btn-warm:hover { background: #e6a600; }
+.sf-btn-danger { background: #fff; color: #e74c3c; border: 1px solid #f5c6cb; }
+.sf-btn-danger:hover { background: #fff5f5; border-color: #e74c3c; }
+
+/* 自定义 checkbox（排除已封禁） */
+.sf-checkbox-label {
+    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: #666; user-select: none; position: relative; padding-left: 22px;
+}
+.sf-checkbox-label input { position: absolute; width: 0; height: 0; opacity: 0; }
+.sf-checkbox-box {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px; border: 2px solid #ccc; border-radius: 3px;
+    transition: all .15s; box-sizing: border-box;
+}
+.sf-checkbox-label input:checked + .sf-checkbox-box {
+    background: #5FB878; border-color: #5FB878;
+}
+.sf-checkbox-label input:checked + .sf-checkbox-box::after {
+    content: '✓'; position: absolute; top: -2px; left: 1px;
+    color: #fff; font-size: 11px; font-weight: bold;
+}
+.sf-checkbox-label input:focus + .sf-checkbox-box { box-shadow: 0 0 0 3px rgba(94,184,120,.15); }
+
+.sf-spacer { flex: 1; min-width: 20px; }
+.sf-page-size-label { color: #666; font-size: 12px; white-space: nowrap; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 900px) {
+    .spider-filter-form { padding: 12px 12px; }
+    .sf-search-wrap { min-width: 120px; max-width: none; }
+}
+@media (max-width: 600px) {
+    .spider-filter-form .filter-inner { gap: 6px; }
+    .sf-select { flex: 1; min-width: 80px; font-size: 12px; }
+    .sf-search-wrap { min-width: 100%; order: -1; }
+    .sf-btn, .sf-btn-outline, .sf-btn-warm, .sf-btn-danger { flex: 1; justify-content: center; font-size: 12px; padding: 0 10px; }
+    .sf-checkbox-label { width: 100%; }
+    .sf-spacer { display: none; }
+    .sf-page-size-label { font-size: 11px; }
+}
+</style>

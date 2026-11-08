@@ -1,0 +1,154 @@
+[
+  {
+    "name": "首页",
+    "icon": "",
+    "url": "/xiaoying_admin/index/",
+    "children": []
+  },
+  {
+    "name": "核心设置",
+    "icon": "",
+    "url": "",
+    "children": [
+      {
+        "name": "网站设置",
+        "icon": "",
+        "url": "/xiaoying_admin/site_settings/",
+        "children": []
+      },
+      {
+        "name": "导入导出",
+        "icon": "",
+        "url": "/xiaoying_admin/tools/export-import/",
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "用户管理",
+    "icon": "",
+    "url": "",
+    "children": [
+      {
+        "name": "用户列表",
+        "icon": "",
+        "url": "/xiaoying_admin/users/",
+        "children": []
+      },
+      {
+        "name": "创建用户",
+        "icon": "",
+        "url": "/xiaoying_admin/users/create/",
+        "children": []
+      },
+      {
+        "name": "登录日志",
+        "icon": "",
+        "url": "/xiaoying_admin/login_logs/",
+        "children": []
+      },
+      {
+        "name": "操作日志",
+        "icon": "",
+        "url": "/xiaoying_admin/operation_logs/",
+        "children": []
+      },
+      {
+        "name": "修改密码",
+        "icon": "",
+        "url": "/xiaoying_admin/change_password/",
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "页面管理",
+    "icon": "",
+    "url": "",
+    "children": [
+      {
+        "name": "单页面管理",
+        "icon": "",
+        "url": "",
+        "children": [
+          {
+            "name": "页面生成",
+            "icon": "",
+            "url": "/xiaoying_admin/pages/generate/",
+            "children": []
+          },
+          {
+            "name": "页面列表",
+            "icon": "",
+            "url": "/xiaoying_admin/pages/list/",
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "SEO手段",
+    "icon": "",
+    "url": "",
+    "children": [
+      {
+        "name": "斗篷伪装",
+        "icon": "",
+        "url": "/xiaoying_admin/seo/cloak/",
+        "children": []
+      },
+      {
+        "name": "域名SEO记录",
+        "icon": "",
+        "url": "/xiaoying_admin/seo/domain-records/",
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "蜘蛛管理",
+    "icon": "",
+    "url": "",
+    "children": [
+      {
+        "name": "蜘蛛日志",
+        "icon": "",
+        "url": "/xiaoying_admin/spider/logs/",
+        "children": []
+      },
+      {
+        "name": "数据分析",
+        "icon": "",
+        "url": "/xiaoying_admin/spider/logs/analytics/",
+        "children": []
+      },
+      {
+        "name": "路径过滤",
+        "icon": "",
+        "url": "/xiaoying_admin/spider/logs/ignore-paths/",
+        "children": []
+      }
+    ]
+  },
+  {
+    "name": "安全防护",
+    "icon": "",
+    "url": "",
+    "children": [
+      {
+        "name": "防火墙",
+        "icon": "",
+        "superuser_only": true,
+        "url": "/xiaoying_admin/firewall/",
+        "children": []
+      },
+      {
+        "name": "静态文件路由",
+        "icon": "",
+        "url": "/xiaoying_admin/static-file/",
+        "children": []
+      }
+    ]
+  }
+]

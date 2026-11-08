@@ -1,0 +1,381 @@
+<script>
+// ============================================================
+// 页面列表 — 域名 SEO 状态弹窗（收录 & 排名第一管理）
+// ============================================================
+
+/**
+ * 打开域名 SEO 状态管理弹窗。
+ * @param {number} pageId   - 页面 ID
+ * @param {string} domain   - 域名
+ * @param {object} seoData  - 当前 SEO 状态（可选，不传则自动加载）
+ */
+function openDomainSeoModal(pageId, domain, seoData) {
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-search" style="color:#5FB878;"></i> 域名 SEO 状态 — ' + escHtml(domain),
+        area: ['540px', '520px'],
+        shade: 0.3,
+        btn: ['保存', '取消'],
+        yes: function(idx) {
+            saveDomainSeo(pageId, domain, idx);
+        },
+        content: buildSeoFormHtml(pageId, domain, seoData),
+        success: function(layero) {
+            if (seoData) {
+                populateSeoForm(layero, seoData);
+            } else {
+                var loadIdx = layer.load(1, {shade: [0.1,'#000']});
+                fetch('/xiaoying_admin/api/pages/domain-seo/get/?page_id=' + pageId + '&domain=' + encodeURIComponent(domain))
+                    .then(function(r) { return r.json(); })
+                    .then(function(resp) {
+                        layer.close(loadIdx);
+                        if (resp.code === 0) {
+                            populateSeoForm(layero, resp.data);
+                        }
+                    })
+                    .catch(function() { layer.close(loadIdx); });
+            }
+        }
+    });
+}
+
+// ========== 构建表单 HTML ==========
+
+function buildSeoFormHtml(pageId, domain, seoData) {
+    var html = '<div style="padding:16px 20px 4px;">';
+    html += '<p style="font-size:12px;color:#999;margin-bottom:12px;">';
+    html += '<i class="fas fa-info-circle"></i> 先勾选已收录的搜索引擎，然后可设置排名第一及关键词。';
+    html += '</p>';
+
+    // ---- 已收录搜索引擎 ----
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;"><i class="fas fa-check-circle" style="color:#5FB878;"></i> 已收录的搜索引擎</div>';
+    html += '<div id="seoEngineChecks" style="display:flex;flex-direction:column;gap:6px;"></div>';
+    html += '</div>';
+
+    // ---- 排名第一区域 ----
+    html += '<div style="margin-bottom:16px;padding-top:12px;border-top:1px solid #f0f0f0;">';
+    html += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:10px;"><i class="fas fa-trophy" style="color:#FF9800;"></i> 首页排名第一</div>';
+
+    // 自定义开关（不依赖 Layui）
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">';
+    html += '<div id="seoRankSwitch" style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;" onclick="toggleRankSwitch(this)">';
+    html += '<div class="rank-switch-bg" style="width:48px;height:26px;border-radius:13px;background:#ccc;transition:background .2s;"></div>';
+    html += '<div class="rank-switch-dot" style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>';
+    html += '</div>';
+    html += '<span id="rankSwitchLabel" style="font-size:12px;color:#888;">已关闭</span>';
+    html += '<input type="hidden" id="seoRankFirstVal" value="0">';
+    html += '</div>';
+
+    // 排名第一详情
+    html += '<div id="seoRankDetail" style="display:none;padding:12px;background:#fff8e1;border-radius:6px;border:1px solid #ffe082;">';
+    html += '<div style="font-size:12px;color:#666;margin-bottom:10px;">选择排名第一的搜索引擎，并添加对应的关键词（每个引擎可添加多个关键词）：</div>';
+    html += '<div id="seoRankEngineInputs"></div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    html += '<input type="hidden" id="seoPageId" value="' + pageId + '">';
+    html += '<input type="hidden" id="seoDomain" value="' + escAttr(domain) + '">';
+    html += '</div>';
+    return html;
+}
+
+// ========== 开关事件 ==========
+
+window.toggleRankSwitch = function(el) {
+    var bg = el.querySelector('.rank-switch-bg');
+    var dot = el.querySelector('.rank-switch-dot');
+    var hidden = document.getElementById('seoRankFirstVal');
+    var label = document.getElementById('rankSwitchLabel');
+    var detail = document.getElementById('seoRankDetail');
+
+    var isOn = hidden.value === '1';
+    if (isOn) {
+        // 关闭
+        hidden.value = '0';
+        bg.style.background = '#ccc';
+        dot.style.left = '2px';
+        dot.style.right = '';
+        label.textContent = '已关闭';
+        detail.style.display = 'none';
+    } else {
+        // 开启
+        var checkedEngines = [];
+        document.querySelectorAll('#seoEngineChecks .seo-engine-cb:checked').forEach(function(cb) {
+            checkedEngines.push(cb.value);
+        });
+        if (!checkedEngines.length) {
+            layer.msg('请先勾选已收录的搜索引擎', {icon:5, time:2000});
+            return;
+        }
+        hidden.value = '1';
+        bg.style.background = '#5FB878';
+        dot.style.left = '';
+        dot.style.right = '2px';
+        label.textContent = '已开启';
+        updateRankArea2();
+    }
+};
+
+// ========== 填充表单数据 ==========
+
+function populateSeoForm(layero, data) {
+    var $ = function(id) { return layero.find('#' + id); };
+
+    var enginesPromise = window._cachedEngines
+        ? Promise.resolve(window._cachedEngines)
+        : fetch('/xiaoying_admin/api/site-settings/search-engines/')
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                window._cachedEngines = resp.data || [];
+                return window._cachedEngines;
+            });
+
+    enginesPromise.then(function(engines) {
+        // 渲染收录复选框
+        var indexed = data.indexed_engines || [];
+        var checksHtml = '';
+        engines.forEach(function(engine) {
+            var checked = indexed.indexOf(engine) !== -1 ? 'checked' : '';
+            checksHtml += '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">';
+            checksHtml += '<input type="checkbox" class="seo-engine-cb" value="' + escAttr(engine) + '" ' + checked + ' style="accent-color:#5FB878;width:16px;height:16px;cursor:pointer;">';
+            checksHtml += '<span style="font-size:13px;color:#333;">' + escHtml(engine) + '</span>';
+            checksHtml += '</label>';
+        });
+        var checkEl = $('seoEngineChecks');
+        if (checkEl.length) checkEl[0].innerHTML = checksHtml;
+
+        // 收录变化时更新开关状态（如果开关已开，检查是否有收录）
+        layero.find('.seo-engine-cb').on('change', function() {
+            var hidden = document.getElementById('seoRankFirstVal');
+            if (hidden.value === '1') {
+                var checkedAny = document.querySelectorAll('#seoEngineChecks .seo-engine-cb:checked').length > 0;
+                if (!checkedAny) {
+                    // 没有收录了，自动关闭排名第一
+                    var swEl = document.getElementById('seoRankSwitch');
+                    if (swEl) {
+                        var bg = swEl.querySelector('.rank-switch-bg');
+                        var dot = swEl.querySelector('.rank-switch-dot');
+                        hidden.value = '0';
+                        bg.style.background = '#ccc';
+                        dot.style.left = '2px';
+                        dot.style.right = '';
+                        document.getElementById('rankSwitchLabel').textContent = '已关闭';
+                        document.getElementById('seoRankDetail').style.display = 'none';
+                    }
+                } else {
+                    updateRankArea2();
+                }
+            }
+        });
+
+        // 初始化排名第一开关
+        var isRankFirst = data.is_rank_first || false;
+        if (isRankFirst && indexed.length) {
+            var swEl = document.getElementById('seoRankSwitch');
+            if (swEl) {
+                var bg = swEl.querySelector('.rank-switch-bg');
+                var dot = swEl.querySelector('.rank-switch-dot');
+                document.getElementById('seoRankFirstVal').value = '1';
+                bg.style.background = '#5FB878';
+                dot.style.left = '';
+                dot.style.right = '2px';
+                document.getElementById('rankSwitchLabel').textContent = '已开启';
+                document.getElementById('seoRankDetail').style.display = '';
+                updateRankArea2(data);
+            }
+        }
+    });
+}
+
+// ========== 排名区域（支持多关键词） ==========
+
+/**
+ * 更新排名第一的引擎选择与关键词输入区域。
+ * @param {object|null} data - 已有数据（可选）
+ */
+function updateRankArea2(data) {
+    data = data || null;
+    var checkedEngines = [];
+    document.querySelectorAll('#seoEngineChecks .seo-engine-cb:checked').forEach(function(cb) {
+        checkedEngines.push(cb.value);
+    });
+
+    var detailEl = document.getElementById('seoRankDetail');
+    if (!detailEl) return;
+
+    if (!checkedEngines.length) {
+        detailEl.style.display = 'none';
+        return;
+    }
+
+    detailEl.style.display = '';
+
+    var rankEngines = (data && data.rank_first_engines) || [];
+    var rankKeywords = (data && data.rank_first_keywords) || {};
+
+    var html = '';
+    checkedEngines.forEach(function(engine, idx) {
+        var checkedRank = rankEngines.indexOf(engine) !== -1 ? 'checked' : '';
+        // 已经有分号分割或逗号分割的关键词
+        var existingKw = rankKeywords[engine] || '';
+        // 显示为数组
+        var kwArray = existingKw ? existingKw.split(/[,，;；]/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+        html += '<div class="seo-rank-row" style="margin-bottom:10px;padding:8px 10px;background:#fff;border-radius:4px;border:1px solid #f0f0f0;">';
+
+        // 第一行：引擎名 + 选中 checkbox
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+        html += '<input type="checkbox" class="seo-rank-engine-cb" value="' + escAttr(engine) + '" ' + checkedRank + ' style="accent-color:#FF9800;width:16px;height:16px;cursor:pointer;">';
+        html += '<span style="font-size:13px;font-weight:600;color:#555;">' + escHtml(engine) + '</span>';
+        html += '</div>';
+
+        // 第二行：已有关键词标签
+        html += '<div id="kwTags_' + idx + '" class="kw-tags-wrap" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;min-height:22px;">';
+        if (kwArray.length) {
+            kwArray.forEach(function(kw) {
+                html += '<span class="kw-tag" style="display:inline-flex;align-items:center;gap:3px;padding:1px 8px;background:#fff3e0;color:#e65100;border-radius:10px;font-size:12px;border:1px solid #ffe0b2;">';
+                html += escHtml(kw);
+                html += '<i class="fas fa-times" style="font-size:9px;cursor:pointer;opacity:.6;" onclick="removeKwTag(this,\'' + escAttr(idx) + '\')"></i>';
+                html += '</span>';
+            });
+        }
+        html += '</div>';
+
+        // 第三行：添加关键词输入
+        html += '<div style="display:flex;align-items:center;gap:4px;">';
+        html += '<input type="text" class="kw-add-input" data-idx="' + idx + '" data-engine="' + escAttr(engine) + '" placeholder="输入关键词，回车添加" style="flex:1;padding:4px 8px;border:1px solid #e0e0e0;border-radius:3px;font-size:12px;outline:none;">';
+        html += '<button class="kw-add-btn" data-idx="' + idx + '" style="padding:4px 10px;background:#FF9800;color:#fff;border:none;border-radius:3px;font-size:11px;cursor:pointer;">添加</button>';
+        html += '</div>';
+
+        html += '</div>';
+    });
+
+    var inputsEl = document.getElementById('seoRankEngineInputs');
+    if (inputsEl) {
+        inputsEl.innerHTML = html;
+
+        // 绑定添加按钮和回车事件
+        inputsEl.querySelectorAll('.kw-add-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var row = this.closest('.seo-rank-row');
+                var input = row.querySelector('.kw-add-input');
+                addKeywordTag(row, input);
+            });
+        });
+        inputsEl.querySelectorAll('.kw-add-input').forEach(function(input) {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    var row = this.closest('.seo-rank-row');
+                    addKeywordTag(row, this);
+                }
+            });
+        });
+    }
+}
+
+/** 添加一个关键词标签 */
+function addKeywordTag(row, input) {
+    var kw = input.value.trim();
+    if (!kw) return;
+    if (kw.length > 50) { layer.msg('关键词最长 50 个字符', {icon:5, time:1500}); return; }
+
+    var wrap = row.querySelector('.kw-tags-wrap');
+    // 检查是否已存在相同关键词
+    var existing = wrap.querySelectorAll('.kw-tag');
+    var dup = false;
+    existing.forEach(function(tag) {
+        // 提取标签文本（去掉末尾 × 按钮）
+        var txt = tag.textContent || tag.innerText || '';
+        if (txt.trim() === kw) dup = true;
+    });
+    if (dup) { layer.msg('关键词已存在', {icon:5, time:1500}); return; }
+
+    var tag = document.createElement('span');
+    tag.className = 'kw-tag';
+    tag.style.cssText = 'display:inline-flex;align-items:center;gap:3px;padding:1px 8px;background:#fff3e0;color:#e65100;border-radius:10px;font-size:12px;border:1px solid #ffe0b2;';
+    tag.innerHTML = escHtml(kw) + '<i class="fas fa-times" style="font-size:9px;cursor:pointer;opacity:.6;margin-left:2px;"></i>';
+    tag.querySelector('i').addEventListener('click', function() { tag.remove(); });
+    wrap.appendChild(tag);
+    input.value = '';
+    input.focus();
+}
+
+/** 移除关键词标签（兼容 onclick 方式） */
+window.removeKwTag = function(el, idx) {
+    var tag = el.closest('.kw-tag');
+    if (tag) tag.remove();
+};
+
+// ========== 保存 ==========
+
+function saveDomainSeo(pageId, domain, layerIdx) {
+    // 收集收录引擎
+    var engines = [];
+    document.querySelectorAll('.seo-engine-cb:checked').forEach(function(cb) {
+        engines.push(cb.value);
+    });
+
+    // 排名第一
+    var hiddenVal = document.getElementById('seoRankFirstVal');
+    var isRankFirst = hiddenVal && hiddenVal.value === '1';
+
+    var rankEngines = [];
+    var rankKeywords = {};
+    if (isRankFirst) {
+        document.querySelectorAll('.seo-rank-engine-cb:checked').forEach(function(cb) {
+            var engine = cb.value;
+            rankEngines.push(engine);
+            // 收集该引擎下的所有关键词标签
+            var row = cb.closest('.seo-rank-row');
+            var tags = row.querySelectorAll('.kw-tag');
+            var kws = [];
+            tags.forEach(function(tag) {
+                var txt = tag.textContent || tag.innerText || '';
+                txt = txt.replace(/×/g, '').trim(); // 移除 × 符号
+                if (txt) kws.push(txt);
+            });
+            rankKeywords[engine] = kws.join(',');
+        });
+    }
+
+    var btn = document.querySelector('.layui-layer-btn0');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+
+    fetch('/xiaoying_admin/api/pages/domain-seo/save/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            page_id: pageId,
+            domain: domain,
+            indexed_engines: engines,
+            is_rank_first: isRankFirst,
+            rank_first_engines: rankEngines,
+            rank_first_keywords: rankKeywords,
+        }),
+    }).then(function(r) { return r.json(); }).then(function(resp) {
+        if (resp.code === 0) {
+            layer.msg('保存成功', {icon:1, time:1000});
+            layer.close(layerIdx);
+            refreshPageSeoDisplay();
+        } else {
+            layer.msg(resp.message || '保存失败', {icon:5});
+        }
+    }).catch(function() {
+        layer.msg('保存失败', {icon:5});
+    }).finally(function() {
+        if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+    });
+}
+
+/** 刷新页面 SEO 显示 */
+function refreshPageSeoDisplay() {
+    if (document.getElementById('tableView') && document.getElementById('tableView').classList.contains('active')) {
+        if (typeof loadTableView === 'function') loadTableView(typeof currentPageTV !== 'undefined' ? currentPageTV : 1);
+    } else {
+        if (typeof loadTree === 'function') loadTree();
+    }
+}
+</script>

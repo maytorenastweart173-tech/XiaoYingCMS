@@ -1,0 +1,645 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}操作日志 — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+    .op-log-page { padding: 0 4px; }
+    .op-log-page h2 { font-size:18px;font-weight:500;margin-bottom:16px; }
+    .op-log-page h2 i { color:#1E9FFF; }
+
+    .stats-row {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    .stat-card {
+        background: #fff;
+        border: 1px solid #e6e6e6;
+        border-radius: 8px;
+        padding: 14px 20px;
+        min-width: 160px;
+        flex: 1;
+    }
+    .stat-card .stat-num {
+        font-size: 28px;
+        font-weight: 600;
+        color: #393D49;
+        line-height: 1.2;
+    }
+    .stat-card .stat-label {
+        font-size: 12px;
+        color: #999;
+        margin-top: 2px;
+    }
+    .stat-card .stat-num.blue { color: #1E9FFF; }
+    .stat-card .stat-num.green { color: #5FB878; }
+    .stat-card .stat-num.orange { color: #FFB800; }
+    .stat-card .stat-num.red { color: #e54d4d; }
+    .stat-card .stat-num.purple { color: #9B59B6; }
+
+    .filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+    .filter-bar input, .filter-bar select {
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+    }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: #1E9FFF; }
+    .filter-bar button {
+        height: 32px;
+        padding: 0 16px;
+        border: 1px solid #d2d2d2;
+        border-radius: 4px;
+        background: #fff;
+        color: #666;
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .filter-bar button:hover { border-color: #1E9FFF; color: #1E9FFF; }
+    .filter-bar .total-info {
+        font-size: 13px;
+        color: #999;
+        margin-left: auto;
+    }
+
+    table.op-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: #fff;
+    }
+    table.op-table th {
+        background: #f2f2f2;
+        text-align: left;
+        padding: 10px 12px;
+        font-weight: 600;
+        color: #393D49;
+        border-bottom: 1px solid #e6e6e6;
+    }
+    table.op-table td {
+        padding: 9px 12px;
+        border-bottom: 1px solid #f0f0f0;
+        color: #555;
+        vertical-align: top;
+    }
+    table.op-table tr:hover td { background: #f8faff; }
+
+    .badge-action {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    .badge-create { background: #e8f8ee; color: #2d6a4f; }
+    .badge-update { background: #e8f0fe; color: #1a56db; }
+    .badge-delete { background: #fce8e8; color: #c0392b; }
+    .badge-login { background: #e8f8ee; color: #2d6a4f; }
+    .badge-logout { background: #f0f0f0; color: #666; }
+    .badge-export { background: #fff3e0; color: #e67e22; }
+    .badge-other { background: #f3e8ff; color: #7c3aed; }
+
+    .detail-trigger {
+        display: inline-block;
+        color: #1E9FFF;
+        cursor: pointer;
+        text-decoration: underline dotted;
+        font-size: 16px;
+        line-height: 1;
+        padding: 0 2px;
+        transition: color .2s;
+    }
+    .detail-trigger:hover { color: #0b7ad1; }
+
+    .path-text {
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
+        vertical-align: middle;
+        cursor: help;
+        font-family: monospace;
+        font-size: 12px;
+    }
+
+    .ua-text {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
+        vertical-align: middle;
+        cursor: help;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 0;
+        color: #bbb;
+        font-size: 14px;
+    }
+    .empty-state i { font-size: 40px; display: block; margin-bottom: 10px; color: #ddd; }
+
+    .error-msg {
+        background: #fff5f5;
+        border: 1px solid #ffe0e0;
+        border-radius: 6px;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        color: #e54d4d;
+        font-size: 13px;
+    }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 16px;
+        padding: 10px 0;
+    }
+    .pagination button {
+        padding: 5px 12px;
+        border: 1px solid #d2d2d2;
+        border-radius: 3px;
+        background: #fff;
+        color: #666;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .pagination button:hover { border-color: #1E9FFF; color: #1E9FFF; }
+    .pagination button.active { background: #1E9FFF; color: #fff; border-color: #1E9FFF; }
+    .pagination button:disabled { opacity: .4; cursor: not-allowed; }
+    .pagination .page-info { font-size: 12px; color: #999; }
+
+    /* 操作类型颜色映射 */
+    .action-color-create { color: #2d6a4f; }
+    .action-color-update { color: #1a56db; }
+    .action-color-delete { color: #c0392b; }
+    .action-color-login { color: #2d6a4f; }
+    .action-color-logout { color: #666; }
+    .action-color-export { color: #e67e22; }
+    .action-color-other { color: #7c3aed; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="op-log-page">
+    <h2><i class="fas fa-clipboard-list"></i> 操作日志</h2>
+
+    {% if error %}
+    <div class="error-msg"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+    {% endif %}
+
+    {% if not error %}
+    {# 统计概览 #}
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-num blue">{{ total_count|default:0 }}</div>
+            <div class="stat-label">总操作记录</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-num green">{{ today_count|default:0 }}</div>
+            <div class="stat-label">今日操作</div>
+        </div>
+        {% for s in stats %}
+        <div class="stat-card">
+            <div class="stat-num 
+                {% if s.action == 'create' %}green{% elif s.action == 'update' %}blue{% elif s.action == 'delete' %}red{% elif s.action == 'export' %}orange{% else %}purple{% endif %}
+            ">{{ s.count }}</div>
+            <div class="stat-label">
+                {% if s.action == 'create' %}创建{% elif s.action == 'update' %}修改{% elif s.action == 'delete' %}删除{% elif s.action == 'login' %}登录{% elif s.action == 'logout' %}登出{% elif s.action == 'export' %}导出{% else %}其他{% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="stat-card">
+            <div class="stat-num">0</div>
+            <div class="stat-label">暂无操作记录</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# 筛选 #}
+    <div class="filter-bar">
+        <input type="text" id="filterUsername" placeholder="按用户名搜索" style="width:130px;">
+        <select id="filterAction">
+            <option value="">全部操作类型</option>
+            <option value="create">创建</option>
+            <option value="update">修改</option>
+            <option value="delete">删除</option>
+            <option value="login">登录</option>
+            <option value="logout">登出</option>
+            <option value="export">导出</option>
+            <option value="other">其他</option>
+        </select>
+        <input type="text" id="filterTargetType" placeholder="按对象类型搜索" style="width:140px;">
+        <button id="searchBtn"><i class="fas fa-search"></i> 搜索</button>
+        <button id="refreshBtn"><i class="fas fa-sync-alt"></i> 刷新</button>
+        <button id="btn-backup-op" class="layui-btn layui-btn-sm layui-btn-normal" style="height:32px;line-height:32px;border-radius:4px;cursor:pointer;"><i class="fas fa-archive"></i> 备份</button>
+        <button id="btn-restore-op" class="layui-btn layui-btn-sm" style="height:32px;line-height:32px;border-radius:4px;cursor:pointer;"><i class="fas fa-upload"></i> 导入备份</button>
+        <span class="total-info">共 <strong id="totalCount">0</strong> 条记录</span>
+    </div>
+
+    {# 表格 #}
+    <table class="op-table">
+        <thead>
+            <tr>
+                <th style="width:45px;">ID</th>
+                <th style="width:80px;">用户名</th>
+                <th style="width:60px;">操作</th>
+                <th style="width:110px;">操作对象</th>
+                <th>描述 / 详情</th>
+                <th style="width:130px;">IP 地址</th>
+                <th style="width:150px;">操作时间</th>
+            </tr>
+        </thead>
+        <tbody id="logTableBody">
+            <tr><td colspan="7"><div class="empty-state"><i class="fas fa-spinner fa-pulse"></i> 加载中…</div></td></tr>
+        </tbody>
+    </table>
+
+    {# 分页 #}
+    <div class="pagination" id="pagination"></div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+/**
+ * 格式化单个变更值（处理布尔、null、空值）
+ */
+function fmtChangeVal(v) {
+    if (v === true || v === 'true') return '启用';
+    if (v === false || v === 'false') return '禁用';
+    if (v === null || v === undefined || v === '') return '<span style="color:#bbb;">(空)</span>';
+    return escHtml(String(v));
+}
+
+/**
+ * 将 changes 对象渲染为 diff 表格
+ */
+function renderChanges(changes) {
+    if (!changes || typeof changes !== 'object') return '';
+    var rows = '';
+    for (var k in changes) {
+        if (!changes.hasOwnProperty(k)) continue;
+        var c = changes[k];
+        // 格式: {old: ..., new: ...} 或 {new: ...}
+        if (c && typeof c === 'object' && 'new' in c) {
+            var oldVal = 'old' in c ? c.old : undefined;
+            var newVal = c.new;
+            var hasOld = (oldVal !== undefined && oldVal !== null);
+            rows += '<tr>' +
+                '<td style="padding:4px 8px;border:1px solid #eee;font-weight:600;color:#393D49;white-space:nowrap;vertical-align:middle;width:100px;">' + escHtml(k) + '</td>' +
+                '<td style="padding:4px 8px;border:1px solid #eee;font-size:13px;">';
+            if (hasOld) {
+                rows += '<span style="color:#e54d4d;text-decoration:line-through;margin-right:8px;">' + fmtChangeVal(oldVal) + '</span>' +
+                        '<span style="color:#16a085;">→</span> ' +
+                        '<span style="color:#2d6a4f;font-weight:600;">' + fmtChangeVal(newVal) + '</span>';
+            } else {
+                rows += '<span style="color:#2d6a4f;">' + fmtChangeVal(newVal) + '</span>';
+            }
+            rows += '</td></tr>';
+        } else {
+            // 普通值
+            var display = (typeof c === 'object') ? JSON.stringify(c, null, 2) : c;
+            rows += '<tr>' +
+                '<td style="padding:4px 8px;border:1px solid #eee;font-weight:600;color:#393D49;vertical-align:top;">' + escHtml(k) + '</td>' +
+                '<td style="padding:4px 8px;border:1px solid #eee;color:#666;font-family:monospace;font-size:12px;white-space:pre-wrap;">' + escHtml(String(display)) + '</td></tr>';
+        }
+    }
+    return '<table style="width:100%;border-collapse:collapse;margin-bottom:0;">' + rows + '</table>';
+}
+
+/** 点击 📋 图标打开详情弹窗 */
+function showDetail(el) {
+    var raw = el.getAttribute('data-detail');
+    if (!raw) return;
+    try {
+        var obj = JSON.parse(raw);
+        var html = '<div style="max-height:60vh;overflow:auto;padding:8px 12px;font-size:13px;line-height:1.6;">';
+
+        // =========================================
+        // 第一区：变更摘要（changes） — 最显眼
+        // =========================================
+        if (obj && typeof obj === 'object' && obj.changes && typeof obj.changes === 'object') {
+            html += '<div style="margin-bottom:10px;">' +
+                '<div style="font-size:12px;color:#999;margin-bottom:4px;"><i class="fas fa-exchange-alt"></i> 变更内容</div>' +
+                renderChanges(obj.changes) +
+                '</div>';
+
+            // 从 obj 中移除 changes，剩余的作为原始数据展示
+            var rest = {};
+            var hasRest = false;
+            for (var k in obj) {
+                if (!obj.hasOwnProperty(k)) continue;
+                if (k !== 'changes' && k !== 'method') {
+                    rest[k] = obj[k];
+                    hasRest = true;
+                }
+            }
+            if (hasRest) {
+                html += '<div style="border-top:1px solid #eee;padding-top:8px;margin-top:4px;">' +
+                    '<div style="font-size:12px;color:#999;margin-bottom:4px;"><i class="fas fa-database"></i> 原始数据</div>';
+                for (var k in rest) {
+                    if (!rest.hasOwnProperty(k)) continue;
+                    var v = rest[k];
+                    if (typeof v === 'object') v = JSON.stringify(v, null, 2);
+                    html += '<div style="margin-bottom:2px;"><code style="font-size:11px;color:#888;">' + escHtml(k) + ':</code> <span style="font-size:12px;color:#555;">' + escHtml(String(v).substring(0, 200)) + '</span></div>';
+                }
+                html += '</div>';
+            }
+        } else if (Array.isArray(obj) || typeof obj === 'object') {
+            // 无 changes 键，以键值对表格展示全部
+            html += '<table style="width:100%;border-collapse:collapse;">';
+            for (var k in obj) {
+                if (!obj.hasOwnProperty(k)) continue;
+                var v = obj[k];
+                if (typeof v === 'object') v = JSON.stringify(v, null, 2);
+                html += '<tr>' +
+                    '<td style="padding:4px 8px;border:1px solid #eee;font-weight:600;color:#393D49;white-space:nowrap;vertical-align:top;">' + escHtml(k) + '</td>' +
+                    '<td style="padding:4px 8px;border:1px solid #eee;color:#666;word-break:break-all;font-family:monospace;font-size:12px;white-space:pre-wrap;">' + escHtml(String(v)) + '</td></tr>';
+            }
+            html += '</table>';
+        } else {
+            html += '<pre style="margin:0;font-size:12px;white-space:pre-wrap;word-break:break-all;">' + escHtml(raw) + '</pre>';
+        }
+        html += '</div>';
+
+        // 根据内容自动计算弹窗尺寸
+        var areaW = '560px';
+        var areaH = obj && obj.changes ? '480px' : '420px';
+        layui.layer.open({
+            type: 1,
+            title: '操作详情',
+            shadeClose: true,
+            shade: 0.3,
+            area: [areaW, areaH],
+            content: html,
+        });
+    } catch(e) {
+        layui.layer.msg('详情解析失败', { icon: 2 });
+    }
+}
+
+(function () {
+    var currentPage = 1;
+    var pageLimit = 20;
+
+    function loadLogs(page) {
+        currentPage = page || 1;
+        var username = document.getElementById('filterUsername').value.trim();
+        var action = document.getElementById('filterAction').value;
+        var targetType = document.getElementById('filterTargetType').value.trim();
+
+        var url = '/xiaoying_admin/api/operation_logs/list/?page=' + currentPage + '&limit=' + pageLimit;
+        if (username) url += '&username=' + encodeURIComponent(username);
+        if (action) url += '&action=' + encodeURIComponent(action);
+        if (targetType) url += '&target_type=' + encodeURIComponent(targetType);
+
+        document.getElementById('logTableBody').innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-spinner fa-pulse"></i> 加载中…</div></td></tr>';
+
+        fetch(url)
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (!res.ok) {
+                    document.getElementById('logTableBody').innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i> ' + (res.error || '加载失败') + '</div></td></tr>';
+                    return;
+                }
+
+                document.getElementById('totalCount').textContent = res.total;
+
+                var html = '';
+                if (res.data.length === 0) {
+                    html = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-inbox"></i> 暂无匹配记录</div></td></tr>';
+                } else {
+                    for (var i = 0; i < res.data.length; i++) {
+                        var log = res.data[i];
+                        var badgeClass = 'badge-' + log.action;
+
+                        // 详情按钮（点击触发 layer 弹窗，data-detail 存序列化后的详情 JSON）
+                        var detailTrigger = '';
+                        if (log.detail) {
+                            var detailJson = JSON.stringify(log.detail);
+                            var detailEscaped = detailJson.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+                            detailTrigger = '<span class="detail-trigger" onclick="showDetail(this)" data-detail=\'' + detailEscaped + '\'>📋</span>';
+                        }
+
+                        html += '<tr>' +
+                            '<td>' + log.id + '</td>' +
+                            '<td><strong>' + escHtml(log.username) + '</strong></td>' +
+                            '<td><span class="badge-action ' + badgeClass + '">' + escHtml(log.action_display) + '</span></td>' +
+                            '<td><span title="' + escAttr(log.target_type) + '">' + escHtml(log.target_type || '—') + '</span></td>' +
+                            '<td>' +
+                                '<div style="display:flex;align-items:flex-start;gap:4px;">' +
+                                    '<span class="path-text" title="' + escAttr(log.path) + '">' + escHtml(log.path) + '</span>' +
+                                    detailTrigger +
+                                '</div>' +
+                                (log.target_repr ? '<div style="font-size:11px;color:#888;margin-top:2px;">' + escHtml(log.target_repr) + '</div>' : '') +
+                            '</td>' +
+                            '<td><code style="font-size:11px;">' + escHtml(log.ip_address) + '</code></td>' +
+                            '<td style="font-size:12px;color:#999;">' + escHtml(log.created_at) + '</td>' +
+                            '</tr>';
+                    }
+                }
+                document.getElementById('logTableBody').innerHTML = html;
+
+                renderPagination(res.total);
+            })
+            .catch(function () {
+                document.getElementById('logTableBody').innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i> 网络错误</div></td></tr>';
+            });
+    }
+
+    function renderPagination(total) {
+        var totalPages = Math.ceil(total / pageLimit) || 1;
+        var container = document.getElementById('pagination');
+        var html = '';
+
+        html += '<button class="page-prev" ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="window._loadOpLogs(' + (currentPage - 1) + ')">上一页</button>';
+
+        var start = Math.max(1, currentPage - 2);
+        var end = Math.min(totalPages, currentPage + 2);
+        if (start > 1) {
+            html += '<button onclick="window._loadOpLogs(1)">1</button>';
+            if (start > 2) html += '<span style="color:#999;padding:0 4px;">…</span>';
+        }
+        for (var i = start; i <= end; i++) {
+            html += '<button class="' + (i === currentPage ? 'active' : '') + '" onclick="window._loadOpLogs(' + i + ')">' + i + '</button>';
+        }
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<span style="color:#999;padding:0 4px;">…</span>';
+            html += '<button onclick="window._loadOpLogs(' + totalPages + ')">' + totalPages + '</button>';
+        }
+
+        html += '<button class="page-next" ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="window._loadOpLogs(' + (currentPage + 1) + ')">下一页</button>';
+        html += '<span class="page-info">第 ' + currentPage + ' / ' + totalPages + ' 页</span>';
+
+        container.innerHTML = html;
+    }
+
+    window._loadOpLogs = loadLogs;
+
+    // 初始化
+    loadLogs(1);
+
+    // ===== 备份操作日志 =====
+    document.getElementById('btn-backup-op').addEventListener('click', function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 备份中…';
+
+        fetch('/xiaoying_admin/api/operation_logs/backup/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'backup' }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-archive"></i> 备份';
+            if (!resp.ok) { layer.msg(resp.error || '备份失败', {icon:2}); return; }
+
+            var r = resp.result;
+            var html = '<div style="padding:15px 20px; line-height:2; font-size:13px;">' +
+                '<table style="width:100%; border-collapse:collapse;">' +
+                '<tr><td style="color:#999; padding:4px 8px 4px 0; width:100px;">备份文件</td><td style="padding:4px 0;"><code style="background:#f6f6f6; padding:2px 8px; border-radius:3px; font-size:12px;">' + escHtml(r.filename) + '</code></td></tr>' +
+                '<tr><td style="color:#999; padding:4px 8px 4px 0;">记录条数</td><td style="padding:4px 0;"><strong>' + r.count + '</strong> 条</td></tr>' +
+                '<tr><td style="color:#999; padding:4px 8px 4px 0;">文件大小</td><td style="padding:4px 0;">' + r.size_str + '</td></tr>' +
+                '</table></div>' +
+                '<div style="padding:0 20px 20px; border-top:1px solid #f2f2f2; margin-top:10px; padding-top:15px;">' +
+                '<p style="font-size:13px; color:#FF5722; margin-bottom:8px;"><i class="fas fa-exclamation-triangle"></i> 备份后是否删除数据库中的日志？</p>' +
+                '<div style="display:flex; gap:8px;">' +
+                '<button class="layui-btn layui-btn-sm layui-btn-primary" onclick="layer.closeAll()">仅备份，暂不删除</button>' +
+                '<button class="layui-btn layui-btn-sm layui-btn-danger" id="btn-delete-op-after-backup"><i class="fas fa-trash"></i> 备份并删除</button>' +
+                '</div></div>';
+
+            layer.open({
+                type: 1,
+                title: '<i class="fas fa-check-circle" style="color:#5FB878;"></i> 备份完成',
+                area: ['500px', '320px'],
+                shade: 0.3,
+                content: html,
+                btn: ['关闭'],
+                yes: function(idx) { layer.close(idx); },
+            });
+
+            var deleteBtn = document.getElementById('btn-delete-op-after-backup');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    fetch('/xiaoying_admin/api/operation_logs/backup/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'backup_and_delete' }),
+                    }).then(function(r) { return r.json(); }).then(function(resp2) {
+                        if (!resp2.ok) { layer.msg(resp2.error || '操作失败', {icon:2}); return; }
+                        layer.msg('已备份并删除 ' + resp2.result.count + ' 条日志', {icon:1});
+                        layer.closeAll();
+                        loadLogs(1);
+                    }).catch(function() { layer.msg('操作失败', {icon:2}); });
+                });
+            }
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-archive"></i> 备份';
+            layer.msg('备份失败：' + (err.message || err), {icon: 2});
+        });
+    });
+
+    // 搜索/刷新事件
+    document.getElementById('searchBtn').addEventListener('click', function () { loadLogs(1); });
+    document.getElementById('refreshBtn').addEventListener('click', function () { loadLogs(currentPage); });
+    document.getElementById('filterUsername').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') loadLogs(1);
+    });
+    document.getElementById('filterTargetType').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') loadLogs(1);
+    });
+    document.getElementById('filterAction').addEventListener('change', function () { loadLogs(1); });
+
+    // ===== 导入备份（操作日志） =====
+    document.getElementById('btn-restore-op').addEventListener('click', function() {
+        var self = this;
+        self.disabled = true;
+        var origHtml = self.innerHTML;
+        self.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中…';
+
+        fetch('/xiaoying_admin/api/operation_logs/backup/list/')
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            self.disabled = false;
+            self.innerHTML = origHtml;
+            if (!resp.ok) { layer.msg(resp.error || '加载失败', {icon:2}); return; }
+            var files = resp.files || [];
+            if (files.length === 0) { layer.msg('暂无备份文件', {icon: 0}); return; }
+
+            var rows = '';
+            for (var i = 0; i < files.length; i++) {
+                var f = files[i];
+                rows += '<tr style="cursor:pointer;" class="op-restore-row" data-filename="' + escHtml(f.filename) + '">' +
+                    '<td style="padding:8px 12px;border-bottom:1px solid #f2f2f2;">' + escHtml(f.filename) + '</td>' +
+                    '<td style="padding:8px 12px;border-bottom:1px solid #f2f2f2;">' + f.size_str + '</td>' +
+                    '<td style="padding:8px 12px;border-bottom:1px solid #f2f2f2;">' + f.modified + '</td></tr>';
+            }
+            var table = '<p style="font-size:12px;color:#999;margin-bottom:10px;">点击文件行执行恢复（增量导入，不影响现有数据）</p>' +
+                '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+                '<thead><tr style="background:#fafafa;"><th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e6e6e6;">文件名</th>' +
+                '<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e6e6e6;">大小</th>' +
+                '<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e6e6e6;">备份时间</th></tr></thead>' +
+                '<tbody>' + rows + '</tbody></table>';
+
+            layer.open({
+                type: 1,
+                title: '<i class="fas fa-upload" style="color:#1E9FFF;"></i> 选择备份文件导入',
+                area: ['650px', '400px'],
+                shade: 0.3,
+                content: '<div style="padding:15px 20px;">' + table + '</div>',
+                btn: ['关闭'],
+            });
+
+            document.querySelectorAll('.op-restore-row').forEach(function(row) {
+                row.addEventListener('click', function() {
+                    var filename = this.getAttribute('data-filename');
+                    layer.confirm('确认从 <code style="background:#f6f6f6;padding:2px 8px;border-radius:3px;">' + escHtml(filename) + '</code> 恢复操作日志？<br><span style="color:#999;font-size:12px;">恢复为增量导入，不会覆盖现有数据。</span>', {
+                        icon: 3, btn: ['恢复', '取消'], title: '确认恢复', area: ['480px', '200px'],
+                    }, function(index) {
+                        layer.close(index);
+                        layer.load(1);
+                        fetch('/xiaoying_admin/api/operation_logs/restore/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ filename: filename, overwrite: false }),
+                        }).then(function(r) { return r.json(); }).then(function(resp2) {
+                            layer.closeAll();
+                            if (!resp2.ok) { layer.msg(resp2.error || '恢复失败', {icon:2}); return; }
+                            layer.msg(resp2.message || '恢复成功', {icon:1});
+                            loadLogs(1);
+                        }).catch(function() { layer.closeAll(); layer.msg('恢复失败', {icon:2}); });
+                    });
+                });
+            });
+        })
+        .catch(function() {
+            self.disabled = false;
+            self.innerHTML = origHtml;
+            layer.msg('加载备份列表失败', {icon: 2});
+        });
+    });
+})();
+</script>
+{% endblock %}

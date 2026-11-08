@@ -1,0 +1,264 @@
+<script>
+// ============================================================
+// 页面列表 — 域名查看 & 编辑弹窗
+// 依赖：全局变量 treeData（树形数据）
+// 依赖：全局函数 escHtml(), escAttr()
+// 依赖：全局函数 loadTree()
+// ============================================================
+
+// ============================================================
+// 域名查看弹窗
+// ============================================================
+
+function openDomainViewModalForRoot(rootObj, title) {
+    // 从 rootObj 提取所有域名（含子域名）
+    title = title || escHtml(rootObj.root);
+    var domains = collectAllDomainsFromRoot(rootObj);
+    renderDomainModal(title, domains);
+}
+
+function openDomainViewModalByRootName(rootName) {
+    // 从 treeData 中全局搜索指定根域名
+    var rootObj = null;
+    if (treeData) {
+        // 搜索所有分类下的根域名
+        if (treeData.categories) {
+            treeData.categories.forEach(function(cat) {
+                if (cat.root_domains) {
+                    cat.root_domains.forEach(function(r) {
+                        if (r.root === rootName) rootObj = r;
+                    });
+                }
+            });
+        }
+        // 搜索未分类下的根域名
+        if (!rootObj && treeData.uncategorized && treeData.uncategorized.root_domains) {
+            treeData.uncategorized.root_domains.forEach(function(r) {
+                if (r.root === rootName) rootObj = r;
+            });
+        }
+    }
+    if (!rootObj) {
+        layer.msg('未找到该域名数据', {icon:0});
+        return;
+    }
+    openDomainViewModalForRoot(rootObj, rootName);
+}
+
+function collectAllDomainsFromRoot(rootObj) {
+    var list = [];
+    if (!rootObj || !rootObj.domains) return list;
+    rootObj.domains.forEach(function(d) {
+        if (d.domain) list.push('https://' + d.domain);
+    });
+    return list;
+}
+
+function openDomainViewModal(catId) {
+    // 从 treeData 中提取指定分类下的所有域名
+    var catName = '';
+    var domains = [];
+    if (treeData && treeData.categories) {
+        treeData.categories.forEach(function(cat) {
+            if (cat.id === catId) {
+                catName = cat.name || '';
+                if (cat.root_domains) {
+                    cat.root_domains.forEach(function(root) {
+                        if (root.domains) {
+                            root.domains.forEach(function(d) {
+                                if (d.domain) domains.push('https://' + d.domain);
+                            });
+                        }
+                    });
+                }
+            }
+        });
+    }
+    if (domains.length === 0) {
+        layer.msg('该分类下暂无域名', {icon:0});
+        return;
+    }
+    renderDomainModal('分类：' + catName, domains);
+}
+
+function renderDomainModal(title, domains) {
+    // 去重
+    var unique = [];
+    var seen = {};
+    domains.forEach(function(d) {
+        if (!seen[d]) { seen[d] = true; unique.push(d); }
+    });
+    domains = unique;
+
+    // 构造域名列表 HTML
+    var listHtml = '';
+    domains.forEach(function(d) {
+        listHtml += '<div class="domain-view-item">'
+            + '<span class="domain-view-url">' + escHtml(d) + '</span>'
+            + '<button class="domain-view-copy" onclick="copyText(this,\'' + escAttr(d) + '\')">复制</button>'
+            + '</div>';
+    });
+
+    var content = '<div class="domain-view-modal">'
+        + '<div class="domain-view-toolbar">'
+        + '<span class="domain-view-count">共 ' + domains.length + ' 个域名</span>'
+        + '<button class="domain-view-btn-all" onclick="copyAllDomains(this)"><i class="fas fa-copy"></i> 复制全部</button>'
+        + '</div>'
+        + '<div class="domain-view-list">' + listHtml + '</div>'
+        + '</div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-globe" style="color:#1E9FFF;"></i> ' + escHtml(title),
+        area: ['520px', '440px'],
+        shadeClose: true,
+        content: content,
+    });
+}
+
+// 复制单个域名
+function copyText(btn, text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            var orig = btn.textContent;
+            btn.textContent = '已复制';
+            btn.style.color = '#5FB878';
+            setTimeout(function() { btn.textContent = orig; btn.style.color = ''; }, 1200);
+        });
+    }
+}
+
+// 复制全部域名
+function copyAllDomains(btn) {
+    var items = document.querySelectorAll('.domain-view-url');
+    var text = '';
+    items.forEach(function(el) { text += el.textContent + '\n'; });
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text.trim()).then(function() {
+            var orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> 已复制全部';
+            setTimeout(function() { btn.innerHTML = orig; }, 1200);
+        });
+    }
+}
+
+// ============================================================
+// 域名设置弹窗
+// ============================================================
+
+function openDomainEditor(id, currentDomains) {
+    if (typeof currentDomains === 'string') {
+        currentDomains = currentDomains ? [currentDomains] : [];
+    }
+    var tags = currentDomains || [];
+
+    var html = '<div style="padding:20px 15px;">';
+    html += '<div class="layui-form-item">';
+    html += '<label class="layui-form-label" style="width:80px;">域名</label>';
+    html += '<div class="layui-input-block" style="margin-left:110px;">';
+    html += '<div style="border:1px solid #e0e0e0;border-radius:4px;padding:6px 8px;min-height:36px;" id="domainTagsWrap">';
+    html += '</div>';
+    html += '<div style="display:flex;gap:6px;margin-top:6px;">';
+    html += '<input type="text" id="domainInput" class="layui-input" placeholder="输入域名，如 example.com 或 *.example.com" style="flex:1;height:32px;font-size:13px;">';
+    html += '<button type="button" id="domainAddBtn" class="layui-btn layui-btn-sm" style="white-space:nowrap;"><i class="fas fa-plus"></i> 添加</button>';
+    html += '</div>';
+    html += '<div style="font-size:11px;color:#999;margin-top:4px;">支持 *. 通配符（如 *.example.com），按回车快速添加</div>';
+    html += '</div></div>';
+    html += '<div class="layui-form-item" style="margin-top:12px;text-align:center;">';
+    html += '<button type="button" class="layui-btn" id="domainSaveBtn"><i class="fas fa-save"></i> 保存</button>';
+    html += '</div></div>';
+
+    layer.open({
+        type: 1,
+        title: '域名设置',
+        area: ['520px', '320px'],
+        shadeClose: true,
+        content: html,
+        success: function(layero) {
+            var wrap = layero.find('#domainTagsWrap')[0];
+            var input = layero.find('#domainInput');
+            var addBtn = layero.find('#domainAddBtn');
+
+            function renderTags() {
+                if (!wrap) return;
+                wrap.innerHTML = tags.map(function(d, i) {
+                    var cls = d.indexOf('*.') === 0 ? 'domain-badge domain-wildcard-tag' : 'domain-badge';
+                    return '<span class="' + cls + '" style="display:inline-flex;align-items:center;gap:4px;margin:2px 4px 2px 0;padding:2px 8px;background:' + (d.indexOf('*.') === 0 ? '#fff3e0' : '#e8f5e9') + ';color:' + (d.indexOf('*.') === 0 ? '#e65100' : '#2e7d32') + ';border-radius:3px;font-size:12px;">' +
+                        escHtml(d) +
+                        ' <a href="javascript:;" class="domain-del-tag" data-i="' + i + '" style="color:#999;text-decoration:none;font-size:14px;line-height:1;">×</a>' +
+                        '</span>';
+                }).join('');
+                if (wrap) {
+                    [].slice.call(wrap.querySelectorAll('.domain-del-tag')).forEach(function(el) {
+                        el.onclick = function() {
+                            var idx = parseInt(this.getAttribute('data-i'));
+                            if (!isNaN(idx)) { tags.splice(idx, 1); renderTags(); }
+                        };
+                    });
+                }
+            }
+
+            function addTag() {
+                var val = input.val().trim().toLowerCase();
+                if (!val) return;
+                if (val.indexOf('*.') === 0) {
+                    if (val.length <= 2 || val.indexOf('.', 2) === -1) {
+                        layer.msg('通配符格式无效，示例: *.example.com', {icon:2}); return;
+                    }
+                } else if (val.indexOf('.') === -1) {
+                    layer.msg('域名格式无效，需包含 .', {icon:2}); return;
+                }
+                if (tags.indexOf(val) !== -1) {
+                    layer.msg('域名已存在', {icon:0}); return;
+                }
+                tags.push(val);
+                input.val('');
+                renderTags();
+            }
+
+            renderTags();
+            addBtn.on('click', addTag);
+            input.on('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); addTag(); }
+            });
+
+            layero.find('#domainSaveBtn').on('click', function() {
+                var sendReq = function(force) {
+                    var payload = { id: id, domains: tags };
+                    if (force) payload.force = true;
+                    return fetch('/xiaoying_admin/api/pages/saved/set-domain/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    }).then(function(r) { return r.json(); });
+                };
+                sendReq(false).then(function(resp) {
+                    if (resp.conflict) {
+                        // 域名被占用，询问用户是否强制解绑
+                        layer.confirm(
+                            '以下域名已被其他页面占用：<br><br>' +
+                            resp.detail +
+                            '<br><br><span style="color:#FF9800;">确认后将自动解绑原页面，并绑定到当前页面。是否继续？</span>',
+                            { icon: 3, title: '域名冲突', btn: ['确认转移', '取消'] },
+                            function(ci) {
+                                layer.close(ci);
+                                sendReq(true).then(function(r2) {
+                                    if (r2.error) { layer.msg(r2.error, {icon:2}); return; }
+                                    layer.closeAll();
+                                    layer.msg(r2.message, {icon:1});
+                                    loadTree();
+                                }).catch(function() { layer.msg('操作失败', {icon:2}); });
+                            }
+                        );
+                        return;
+                    }
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.closeAll();
+                    layer.msg(resp.message, {icon:1});
+                    loadTree();
+                }).catch(function() { layer.msg('操作失败', {icon:2}); });
+            });
+        },
+    });
+}
+</script>

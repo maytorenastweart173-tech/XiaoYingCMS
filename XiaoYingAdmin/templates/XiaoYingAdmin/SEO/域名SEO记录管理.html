@@ -1,0 +1,599 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% load static %}
+
+{% block title %}域名SEO记录 — {{ site_name }}{% endblock %}
+
+{% block head %}
+<style>
+/* ===== 工具栏 ===== */
+.dsr-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 15px; gap: 10px; flex-wrap: wrap;
+}
+.dsr-search {
+    width: 260px; height: 30px; border: 1px solid #d2d2d2;
+    border-radius: 4px; padding: 0 10px; font-size: 13px;
+    outline: none; transition: border-color 0.2s;
+}
+.dsr-search:focus { border-color: #5FB878; }
+
+/* ===== 树形容器 ===== */
+.tree-card { background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+
+/* ===== 树节点公共 ===== */
+.tree-root-row, .tree-node-row {
+    display: flex; align-items: center; padding: 0 16px;
+    cursor: pointer; transition: background 0.12s;
+    text-decoration: none; color: inherit; gap: 8px;
+}
+.tree-root-row:hover, .tree-node-row:hover { background: #f8faf8; }
+
+.tree-root-row { height: 44px; border-bottom: 1px solid #f3f3f3; }
+.tree-node-row { height: 38px; border-bottom: 1px solid #f8f8f8; }
+.tree-node-row:last-child { border-bottom: none; }
+
+.tree-arrow {
+    width: 16px; flex-shrink: 0; text-align: center;
+    color: #bbb; font-size: 12px; transition: transform 0.2s;
+}
+.tree-arrow.expanded { transform: rotate(90deg); }
+.tree-arrow.no-children { visibility: hidden; }
+
+.tree-icon {
+    width: 18px; flex-shrink: 0; text-align: center; font-size: 14px;
+}
+.tree-icon.root { color: #1890ff; }
+.tree-icon.child { color: #999; font-size: 11px; }
+
+.tree-label {
+    flex: 1; font-size: 13px; font-weight: 500; color: #333;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tree-child-row .tree-label { font-size: 12px; font-weight: 400; }
+
+.tree-badge {
+    font-size: 11px; padding: 1px 7px; border-radius: 3px;
+    font-weight: 500; margin-right: 6px; white-space: nowrap;
+}
+.tree-badge.root-badge { background: #e8f4ff; color: #1890ff; }
+.tree-badge.sub-badge { background: #fff7e6; color: #fa8c16; }
+
+.tree-count {
+    font-size: 11px; color: #bbb; margin-right: 8px; white-space: nowrap;
+}
+
+.tree-actions { white-space: nowrap; flex-shrink: 0; }
+
+/* ===== 子节点容器（展开/收起） ===== */
+.tree-children { display: none; }
+.tree-children.open { display: block; }
+
+/* ===== 空状态 ===== */
+.dsr-empty {
+    text-align: center; padding: 60px 0; color: #ccc;
+}
+.dsr-empty i { font-size: 48px; display: block; margin-bottom: 12px; }
+.dsr-empty p { font-size: 14px; margin: 0; }
+
+/* ===== 分页 ===== */
+.dsr-pagination {
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px 0; gap: 4px; border-top: 1px solid #f0f0f0;
+}
+.dsr-pagination button {
+    min-width: 30px; height: 28px; border: 1px solid #e0e0e0;
+    background: #fff; border-radius: 3px; cursor: pointer;
+    font-size: 12px; color: #666; transition: all 0.12s;
+}
+.dsr-pagination button:hover { border-color: #5FB878; color: #5FB878; }
+.dsr-pagination button.active { background: #5FB878; border-color: #5FB878; color: #fff; }
+.dsr-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.dsr-pagination .page-info { font-size: 12px; color: #999; margin: 0 8px; }
+
+/* ===== 表单弹窗 ===== */
+.dsr-form label { font-weight: 500; color: #333; display: block; margin-bottom: 4px; }
+.dsr-form .required::after { content: ' *'; color: #ff4d4f; }
+.dsr-form .layui-input { height: 34px; font-size: 13px; }
+.dsr-form textarea.layui-input { height: 70px; resize: vertical; padding: 6px 10px; }
+
+/* ===== 搜索时树转平铺 ===== */
+.tree-flat .tree-children { display: block !important; }
+.tree-flat .tree-arrow { visibility: hidden; }
+
+/* ===== 批量模式 ===== */
+.tree-row.selected { background: #e6f7ff !important; box-shadow: inset 3px 0 0 #1890ff; }
+.batch-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; border: 1px solid #bae7ff; }
+.batch-bar .batch-count { font-size: 13px; font-weight: 600; color: #1890ff; white-space: nowrap; }
+.batch-bar .batch-input { height: 32px; border: 1px solid #d2d2d2; border-radius: 4px; padding: 0 8px; font-size: 13px; outline: none; }
+.batch-bar .batch-input:focus { border-color: #5FB878; }
+.batch-bar .batch-textarea { height: 32px; border: 1px solid #d2d2d2; border-radius: 4px; padding: 4px 8px; font-size: 13px; outline: none; resize: vertical; min-width: 200px; }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="dsr-toolbar">
+    <div>
+        <i class="fas fa-globe" style="color:#5FB878;"></i>
+        <span style="font-size:16px;font-weight:600;margin-left:6px;">域名SEO记录</span>
+        <span style="font-size:13px;color:#999;margin-left:8px;">点击域名查看快排手段时间线 · 展开根域名查看子域名</span>
+    </div>
+    <div id="toolbarActions">
+        <button class="layui-btn layui-btn-sm" onclick="syncDomains()" id="syncBtn">
+            <i class="fas fa-sync"></i> 从项目同步
+        </button>
+        <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="openDomainModal(null)">
+            <i class="fas fa-plus"></i> 新增域名
+        </button>
+        <button class="layui-btn layui-btn-sm layui-btn-warm" onclick="enterBatchMode()">
+            <i class="fas fa-tasks"></i> 批量记录
+        </button>
+        <button class="layui-btn layui-btn-sm layui-btn-danger" onclick="clearAllRecords()">
+            <i class="fas fa-trash-alt"></i> 清空全部
+        </button>
+    </div>
+</div>
+
+<!-- 批量记录工具栏（默认隐藏） -->
+<div class="dsr-toolbar" id="batchToolbar" style="display:none;">
+    <div class="batch-bar">
+        <span class="batch-count" id="batchCount">已选择 0 个域名</span>
+        <input type="datetime-local" class="batch-input" id="batchDate">
+        <textarea class="batch-textarea" id="batchDesc" placeholder="操作描述，如：上传了蜘蛛池" rows="1"></textarea>
+        <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="submitBatchRecords()">
+            <i class="fas fa-check"></i> 提交
+        </button>
+        <button class="layui-btn layui-btn-sm" onclick="exitBatchMode()">
+            <i class="fas fa-times"></i> 取消
+        </button>
+    </div>
+</div>
+
+<div class="dsr-toolbar">
+    <div>
+        <i class="fas fa-search" style="color:#999;"></i>
+        <input type="text" class="dsr-search" id="searchInput" placeholder="搜索域名..." onkeyup="onSearch(event)">
+    </div>
+    <div style="font-size:12px;color:#999;">
+        共 <span id="domainCount">0</span> 个域名
+    </div>
+</div>
+
+<div class="tree-card">
+    <div id="domainTree">
+        <div class="dsr-empty">
+            <i class="fas fa-inbox"></i>
+            <p>暂无域名，点击「从项目同步」或「新增域名」开始</p>
+        </div>
+    </div>
+    <div id="paginationBar" class="dsr-pagination" style="display:none;"></div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+var page = 1, totalPages = 1, totalCount = 0, searchQuery = '';
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function onSearch(e) {
+    if (e.key !== 'Enter') return;
+    page = 1; searchQuery = document.getElementById('searchInput').value.trim();
+    loadDomains();
+}
+
+// ===== 展开/收起 =====
+function toggleTree(el) {
+    var node = el.closest('.tree-node');
+    if (!node) return;
+    var children = node.querySelector(':scope > .tree-children');
+    var arrow = el.querySelector('.tree-arrow');
+    if (!children || !arrow) return;
+    if (children.classList.contains('open')) {
+        children.classList.remove('open');
+        arrow.classList.remove('expanded');
+    } else {
+        children.classList.add('open');
+        arrow.classList.add('expanded');
+    }
+}
+
+// ===== 递归渲染节点 =====
+function renderTreeNode(node, depth) {
+    var hasChildren = node.children && node.children.length > 0;
+    var recordLabel = node.record_count > 0 ? node.record_count + ' 条记录' : '暂无记录';
+    var paddingLeft = 16 + depth * 28;
+    var isRealRoot = depth === 0 && node.id > 0;
+
+    var html = '<div class="tree-node">';
+
+    var isVirtualRoot = (depth === 0 && node.id === 0);
+
+    if (depth === 0) {
+        // 根节点
+        html += '<div class="tree-root-row tree-row" data-domain-id="' + node.id + '" onclick="toggleTree(this)">';
+        html += '<span class="tree-arrow' + (hasChildren ? '' : ' no-children') + '"><i class="fas fa-caret-right"></i></span>';
+        html += '<span class="tree-icon root"><i class="fas fa-globe"></i></span>';
+        html += '<span class="tree-badge root-badge">根域名</span>';
+        html += '<span class="tree-label">' + escHtml(node.domain) + '</span>';
+        html += '<span class="tree-count">' + recordLabel + '</span>';
+        // 虚拟根域名（id=0）不是真实 SeoDomain 记录，不可操作
+        if (!isVirtualRoot) {
+            html += '<span class="tree-actions">' +
+                '<button class="layui-btn layui-btn-xs" onclick="event.stopPropagation();goTimeline(' + node.id + ')"><i class="fas fa-clock"></i> 时间线</button> ' +
+                '<button class="layui-btn layui-btn-xs layui-btn-warm" onclick="event.stopPropagation();openDomainModal(' + node.id + ')"><i class="fas fa-edit"></i></button> ' +
+                '<button class="layui-btn layui-btn-xs layui-btn-danger" onclick="event.stopPropagation();deleteDomain(' + node.id + ')"><i class="fas fa-trash"></i></button>' +
+            '</span>';
+        }
+        html += '</div>';
+    } else {
+        // 子域名节点（任意层级）— 始终有真实 SeoDomain 记录
+        var subLabel = node.domain_type_label || '子域名';
+        html += '<div class="tree-node-row tree-row" data-domain-id="' + node.id + '" style="padding-left:' + paddingLeft + 'px" onclick="toggleTreeNode(this)">';
+        html += '<span class="tree-arrow' + (hasChildren ? '' : ' no-children') + '"><i class="fas fa-caret-right"></i></span>';
+        html += '<span class="tree-icon child"><i class="fas fa-link"></i></span>';
+        html += '<span class="tree-badge sub-badge">' + escHtml(subLabel) + '</span>';
+        html += '<span class="tree-label">' + escHtml(node.domain) + '</span>';
+        html += '<span class="tree-count">' + recordLabel + '</span>';
+        html += '<span class="tree-actions">' +
+            '<button class="layui-btn layui-btn-xs" onclick="event.stopPropagation();goTimeline(' + node.id + ')"><i class="fas fa-clock"></i> 时间线</button> ' +
+            '<button class="layui-btn layui-btn-xs layui-btn-warm" onclick="event.stopPropagation();openDomainModal(' + node.id + ')"><i class="fas fa-edit"></i></button> ' +
+            '<button class="layui-btn layui-btn-xs layui-btn-danger" onclick="event.stopPropagation();deleteDomain(' + node.id + ')"><i class="fas fa-trash"></i></button>' +
+        '</span>';
+        html += '</div>';
+    }
+
+    // 子节点（递归）
+    if (hasChildren) {
+        html += '<div class="tree-children">';
+        for (var j = 0; j < node.children.length; j++) {
+            html += renderTreeNode(node.children[j], depth + 1);
+        }
+        html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
+// ===== 子域名行点击：有 children 则切换展开，否则进时间线 =====
+function toggleTreeNode(el) {
+    // 批量模式下不导航，由批量选择事件处理
+    if (isBatchMode) return;
+    var hasChildren = el.querySelector('.tree-arrow:not(.no-children)');
+    if (hasChildren) {
+        toggleTree(el);
+    } else {
+        // 找 id 进时间线
+        var nodeEl = el.closest('.tree-node');
+        if (nodeEl) {
+            var idEl = nodeEl.querySelector('[onclick*="goTimeline"]');
+            if (idEl) {
+                var match = idEl.getAttribute('onclick').match(/goTimeline\((\d+)\)/);
+                if (match) goTimeline(parseInt(match[1]));
+            }
+        }
+    }
+}
+
+// ===== 渲染树 =====
+function renderTree(treeData) {
+    var container = document.getElementById('domainTree');
+    document.getElementById('domainCount').textContent = totalCount;
+
+    if (!treeData || treeData.length === 0) {
+        container.innerHTML = '<div class="dsr-empty"><i class="fas fa-inbox"></i><p>暂无域名</p></div>';
+        renderPagination();
+        return;
+    }
+
+    // 搜索时展平所有节点
+    var isSearch = searchQuery.length > 0;
+    var html = '<div class="' + (isSearch ? 'tree-flat' : '') + '">';
+
+    for (var i = 0; i < treeData.length; i++) {
+        html += renderTreeNode(treeData[i], 0);
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    // 搜索时自动展开所有层级
+    if (isSearch) {
+        container.querySelectorAll('.tree-children').forEach(function(el) {
+            el.classList.add('open');
+        });
+        container.querySelectorAll('.tree-arrow').forEach(function(el) {
+            el.classList.add('expanded');
+        });
+    }
+
+    renderPagination();
+}
+
+function goTimeline(id) {
+    window.location.href = '/xiaoying_admin/seo/domain-records/' + id + '/';
+}
+
+// ===== 分页 =====
+function renderPagination() {
+    var bar = document.getElementById('paginationBar');
+    if (totalPages <= 1) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+
+    var html = '<button onclick="goPage(1)"' + (page<=1?' disabled':'') + '><i class="fas fa-angle-double-left"></i></button>';
+    html += '<button onclick="goPage(' + (page-1) + ')"' + (page<=1?' disabled':'') + '><i class="fas fa-angle-left"></i></button>';
+
+    var start = Math.max(1, page - 2);
+    var end = Math.min(totalPages, page + 2);
+    if (start > 1) html += '<button disabled>...</button>';
+    for (var p = start; p <= end; p++) {
+        html += '<button class="' + (p===page?'active':'') + '" onclick="goPage(' + p + ')">' + p + '</button>';
+    }
+    if (end < totalPages) html += '<button disabled>...</button>';
+
+    html += '<button onclick="goPage(' + (page+1) + ')"' + (page>=totalPages?' disabled':'') + '><i class="fas fa-angle-right"></i></button>';
+    html += '<button onclick="goPage(' + totalPages + ')"' + (page>=totalPages?' disabled':'') + '><i class="fas fa-angle-double-right"></i></button>';
+    html += '<span class="page-info">' + page + '/' + totalPages + ' 页，共 ' + totalCount + ' 个根域名</span>';
+    bar.innerHTML = html;
+}
+
+function goPage(p) {
+    if (p < 1 || p > totalPages || p === page) return;
+    page = p;
+    loadDomains();
+}
+
+// ===== 加载数据 =====
+function loadDomains() {
+    // 切页时如果处于批量模式，清除选择
+    if (isBatchMode) {
+        selectedDomainIds = {};
+        updateBatchCount();
+    }
+    var url = '/xiaoying_admin/api/seo/domains/tree/?page=' + page + '&page_size=20';
+    if (searchQuery) url += '&q=' + encodeURIComponent(searchQuery);
+    fetch(url).then(function(r){return r.json()}).then(function(data){
+        if (data.ok) {
+            page = data.page;
+            totalPages = data.total_pages;
+            totalCount = data.total;
+            treeDomains = data.tree || [];
+            renderTree(treeDomains);
+        }
+    }).catch(function(){});
+}
+
+// ===== 新增/编辑域名 =====
+var treeDomains = [];
+function findNodeById(list, id) {
+    for (var i = 0; i < list.length; i++) {
+        if (list[i].id === id) return list[i];
+        if (list[i].children && list[i].children.length > 0) {
+            var found = findNodeById(list[i].children, id);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+function openDomainModal(id) {
+    var r = id ? findNodeById(treeDomains, id) : null;
+    var title = r ? '编辑域名' : '新增域名';
+    var domainVal = r ? escAttr(r.domain) : '';
+    var typeVal = r ? r.domain_type : 'root';
+    var remarkVal = r ? escAttr(r.remark || '') : '';
+    var html =
+        '<div class="dsr-form" style="padding:20px 25px 0 25px;">' +
+        '<div class="layui-form-item" style="margin-bottom:12px;">' +
+            '<label class="required">域名</label>' +
+            '<input id="fDomain" value="' + domainVal + '" class="layui-input" placeholder="如 example.com">' +
+        '</div>' +
+        '<div class="layui-form-item" style="margin-bottom:12px;">' +
+            '<label class="required">域名类型</label>' +
+            '<select id="fType" class="layui-input">' +
+                '<option value="root"' + (typeVal==='root'?' selected':'') + '>根域名</option>' +
+                '<option value="multi"' + (typeVal==='multi'?' selected':'') + '>多域名</option>' +
+            '</select>' +
+        '</div>' +
+        '<div class="layui-form-item" style="margin-bottom:12px;">' +
+            '<label>备注</label>' +
+            '<textarea id="fRemark" class="layui-input" placeholder="可选">' + remarkVal + '</textarea>' +
+        '</div></div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-' + (r?'edit':'plus-circle') + '"></i> ' + title,
+        area: ['480px','360px'],
+        shadeClose: true,
+        content: html,
+        btn: ['保存','取消'],
+        yes: function(index) {
+            var domain = document.getElementById('fDomain').value.trim();
+            var type = document.getElementById('fType').value;
+            var remark = document.getElementById('fRemark').value.trim();
+            if (!domain) { layer.msg('域名不能为空', {icon:2}); return; }
+
+            var url = r ? '/xiaoying_admin/api/seo/domains/' + r.id + '/update/' : '/xiaoying_admin/api/seo/domains/create/';
+            fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({domain:domain, domain_type:type, remark:remark}),
+            }).then(function(r){return r.json()}).then(function(data){
+                if (data.ok) { layer.msg(data.message, {icon:1}); layer.close(index); loadDomains(); }
+                else { layer.msg(data.error||'操作失败', {icon:2}); }
+            }).catch(function(){ layer.msg('网络错误', {icon:2}); });
+        }
+    });
+}
+
+// ===== 删除域名 =====
+function deleteDomain(id) {
+    layer.confirm('确定删除该域名及其所有时间线记录？', {icon:3,title:'确认',btn:['确定','取消']}, function(idx){
+        fetch('/xiaoying_admin/api/seo/domains/' + id + '/delete/', {method:'POST'})
+        .then(function(r){return r.json()}).then(function(data){
+            if (data.ok) { layer.msg('已删除', {icon:1}); loadDomains(); }
+            else { layer.msg(data.error||'删除失败', {icon:2}); }
+        }).catch(function(){ layer.msg('网络错误', {icon:2}); })
+        .finally(function(){ layer.close(idx); });
+    });
+}
+
+// ===== 从项目同步 =====
+function syncDomains() {
+    var btn = document.getElementById('syncBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
+    fetch('/xiaoying_admin/api/seo/domains/sync/', {method:'POST'})
+    .then(function(r){return r.json()}).then(function(data){
+        if (data.ok) { layer.msg(data.message, {icon:1}); loadDomains(); }
+        else { layer.msg(data.error||'同步失败', {icon:2}); }
+    }).catch(function(){ layer.msg('网络错误', {icon:2}); })
+    .finally(function(){ btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> 从项目同步'; });
+}
+
+// ===== 批量记录模式 =====
+var isBatchMode = false;
+var selectedDomainIds = {};
+
+function getNowDateTime() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    var h = String(now.getHours()).padStart(2, '0');
+    var min = String(now.getMinutes()).padStart(2, '0');
+    return y + '-' + m + '-' + d + 'T' + h + ':' + min;
+}
+
+function enterBatchMode() {
+    isBatchMode = true;
+    selectedDomainIds = {};
+    document.getElementById('toolbarActions').style.display = 'none';
+    document.getElementById('batchToolbar').style.display = '';
+    document.getElementById('batchDate').value = getNowDateTime();
+    document.getElementById('batchDesc').value = '';
+    updateBatchCount();
+    // 清除旧的选中样式
+    document.querySelectorAll('.tree-row.selected').forEach(function(el) {
+        el.classList.remove('selected');
+    });
+}
+
+function exitBatchMode() {
+    isBatchMode = false;
+    selectedDomainIds = {};
+    document.getElementById('toolbarActions').style.display = '';
+    document.getElementById('batchToolbar').style.display = 'none';
+    document.querySelectorAll('.tree-row.selected').forEach(function(el) {
+        el.classList.remove('selected');
+    });
+}
+
+function updateBatchCount() {
+    var count = Object.keys(selectedDomainIds).length;
+    document.getElementById('batchCount').textContent = '已选择 ' + count + ' 个域名';
+}
+
+// 批量模式下点击树节点切换选中
+document.addEventListener('click', function(e) {
+    if (!isBatchMode) return;
+    var row = e.target.closest('.tree-row[data-domain-id]');
+    if (!row) return;
+    var id = parseInt(row.dataset.domainId);
+    if (!id || id === 0) return; // 虚拟根域名不可选
+    // 点击操作按钮（时间线/编辑/删除）时不切换选择
+    if (e.target.closest('.tree-actions, button')) return;
+    // 阻止事件冒泡到父级避免展开/收起被触发两次
+    e.stopPropagation();
+    if (selectedDomainIds[id]) {
+        delete selectedDomainIds[id];
+        row.classList.remove('selected');
+    } else {
+        selectedDomainIds[id] = true;
+        row.classList.add('selected');
+    }
+    updateBatchCount();
+});
+
+function submitBatchRecords() {
+    var ids = Object.keys(selectedDomainIds).map(Number);
+    if (ids.length === 0) {
+        layer.msg('请先选择至少一个域名', {icon:2});
+        return;
+    }
+    var actionDate = document.getElementById('batchDate').value.trim();
+    var description = document.getElementById('batchDesc').value.trim();
+    if (!actionDate) { layer.msg('请选择操作时间', {icon:2}); return; }
+    if (!description) { layer.msg('请输入操作描述', {icon:2}); return; }
+
+    var btn = document.querySelector('#batchToolbar .layui-btn-normal');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+
+    fetch('/xiaoying_admin/api/seo/domains/records/batch-create/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            domain_ids: ids,
+            action_date: actionDate.replace('T', ' '),
+            description: description,
+        }),
+    }).then(function(r){return r.json()}).then(function(data){
+        if (data.ok) {
+            layer.msg(data.message, {icon:1});
+            exitBatchMode();
+            loadDomains();
+        } else {
+            layer.msg(data.error||'操作失败', {icon:2});
+        }
+    }).catch(function(){ layer.msg('网络错误', {icon:2}); })
+    .finally(function(){ btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> 提交'; });
+}
+
+// ===== 清空全部 =====
+function clearAllRecords() {
+    layer.confirm(
+        '<div style="text-align:center;padding:10px 0;">' +
+        '<i class="fas fa-exclamation-triangle" style="font-size:48px;color:#ff4d4f;margin-bottom:10px;"></i>' +
+        '<p style="font-size:15px;font-weight:600;margin-bottom:8px;">确定要清空全部域名SEO记录吗？</p>' +
+        '<p style="font-size:13px;color:#999;">此操作将<strong style="color:#ff4d4f;">永久删除</strong>所有域名实体及其时间线记录，不可恢复！</p>' +
+        '</div>',
+        {icon:3, title:'确认清空', btn:['确认清空','取消']},
+        function(idx) {
+            // 二次确认
+            layer.prompt({
+                title: '<span style="color:#ff4d4f;">请输入 YES 确认清空</span>',
+                formType: 0,
+                btn: ['确认','取消'],
+                area: ['350px','auto'],
+                value: '',
+            }, function(val, index) {
+                if (val.trim().toUpperCase() !== 'YES') {
+                    layer.msg('请输入 YES 确认操作', {icon:2});
+                    return;
+                }
+                layer.close(index);
+                fetch('/xiaoying_admin/api/seo/records/clear-all/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({confirm: 'yes'}),
+                }).then(function(r){return r.json()}).then(function(data){
+                    if (data.ok) {
+                        layer.msg(data.message, {icon:1});
+                        loadDomains();
+                    } else {
+                        layer.msg(data.error||'清空失败', {icon:2});
+                    }
+                }).catch(function(){ layer.msg('网络错误', {icon:2}); })
+                .finally(function(){ layer.close(idx); });
+            });
+        }
+    );
+}
+
+// ===== 初始化 =====
+layui.use(['layer'], function(){
+    layer = layui.layer;
+    loadDomains();
+});
+</script>
+{% endblock %}

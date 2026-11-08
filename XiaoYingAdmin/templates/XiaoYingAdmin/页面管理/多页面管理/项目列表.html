@@ -1,0 +1,429 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% block title %}多页面管理{% endblock %}
+{% block head %}
+<style>
+    /* ========== 顶部工具栏 ========== */
+    .mp-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .mp-header h2 { margin:0; font-size:18px; color:#393D49; }
+    .mp-view-tabs { display:inline-flex; border:1px solid #e0e0e0; border-radius:4px; overflow:hidden; }
+    .mp-view-tabs .tab-btn { padding:6px 16px; font-size:13px; cursor:pointer; border:none; background:#fff; color:#666; transition:all .2s; }
+    .mp-view-tabs .tab-btn.active { background:#1E9FFF; color:#fff; }
+    .mp-view-tabs .tab-btn:not(:last-child) { border-right:1px solid #e0e0e0; }
+    .mp-view-tabs .tab-btn:hover:not(.active) { background:#f5f5f5; }
+    .mp-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .mp-toolbar .total-label { color:#999; font-size:13px; margin-left:auto; }
+
+    /* ========== 卡片视图（原有） ========== */
+    .mp-card-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; }
+    .mp-card { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); transition:box-shadow .2s; overflow:hidden; }
+    .mp-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.12); }
+    .mp-card-body { padding:18px 20px; }
+    .mp-card-title { font-size:15px; font-weight:600; color:#2D3748; margin-bottom:6px; }
+    .mp-card-title a { color:inherit; text-decoration:none; }
+    .mp-card-title a:hover { color:#1E9FFF; }
+    .mp-card-domain { font-size:12px; color:#999; margin-bottom:10px; }
+    .mp-card-domain i { color:#5FB878; margin-right:4px; }
+    .mp-card-theme { font-size:13px; color:#666; line-height:1.5; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:12px; }
+    .mp-card-meta { display:flex; gap:16px; font-size:12px; color:#999; }
+    .mp-card-meta span { display:inline-flex; align-items:center; gap:4px; }
+    .mp-card-actions { border-top:1px solid #f0f0f0; padding:10px 20px; display:flex; gap:8px; }
+    .mp-card-actions .layui-btn { height:28px; line-height:28px; padding:0 12px; font-size:12px; }
+    .mp-status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+    .mp-status-dot.draft { background:#ccc; }
+    .mp-status-dot.generating { background:#FFB800; animation:pulse 1s infinite; }
+    .mp-status-dot.completed { background:#5FB878; }
+    .mp-status-dot.failed { background:#FF5722; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .mp-empty { text-align:center; padding:80px 20px; color:#999; }
+    .mp-empty .empty-icon { font-size:56px; color:#dce1e6; margin-bottom:16px; display:block; }
+    .mp-empty .empty-icon i { font-size:56px; }
+    .mp-empty p { margin-bottom:20px; font-size:15px; color:#aaa; }
+    .mp-empty .layui-btn { height:34px; line-height:34px; padding:0 24px; font-size:13px; }
+    .mp-empty .layui-btn i { font-size:13px; }
+
+    /* ========== 树形视图 ========== */
+    .tree-view { display:none; }
+    .tree-view.active { display:block; }
+    .tree-node { position:relative; }
+    .tree-node-row { display:flex; align-items:center; padding:7px 8px; border-radius:4px; cursor:pointer; transition:background .1s; gap:6px; font-size:13px; }
+    .tree-node-row:hover { background:#f8f8f8; }
+    .tree-node-row .tree-arrow { width:16px; text-align:center; color:#999; font-size:12px; transition:transform .2s; flex-shrink:0; }
+    .tree-node-row .tree-arrow.expanded { transform:rotate(90deg); }
+    .tree-node-row .tree-arrow.no-children { visibility:hidden; }
+    .tree-node-row .tree-icon { width:16px; text-align:center; flex-shrink:0; }
+    .tree-node-row .tree-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .tree-node-row .tree-count { font-size:11px; color:#999; background:#f0f0f0; padding:0 8px; border-radius:8px; flex-shrink:0; }
+    .tree-children { display:none; padding-left:24px; }
+    .tree-children.expanded { display:block; }
+
+    /* 根域名节点 */
+    .tree-node-root > .tree-node-row { font-weight:600; color:#1a237e; font-size:14px; padding:8px 8px; border-bottom:1px solid #f5f5f5; margin-bottom:2px; }
+    .tree-node-root > .tree-node-row .tree-icon { color:#5C6BC0; }
+
+    /* 项目节点 */
+    .tree-node-project > .tree-node-row { padding-left:12px; color:#333; font-weight:500; }
+    .tree-node-project > .tree-node-row .tree-icon { color:#1E9FFF; }
+    .tree-node-project > .tree-node-row .tree-status { display:inline-flex; align-items:center; gap:3px; font-size:11px; padding:1px 6px; border-radius:8px; flex-shrink:0; }
+    .tree-node-project > .tree-node-row .tree-status.completed { background:#e8f5e9; color:#2e7d32; }
+    .tree-node-project > .tree-node-row .tree-status.generating { background:#fff3e0; color:#e65100; }
+    .tree-node-project > .tree-node-row .tree-status.draft { background:#f5f5f5; color:#999; }
+    .tree-node-project > .tree-node-row .tree-status.failed { background:#fbe9e7; color:#c62828; }
+    .tree-node-project .project-actions { display:none; gap:4px; margin-left:auto; flex-shrink:0; }
+    .tree-node-project:hover .project-actions { display:flex; }
+    .tree-node-project .project-actions .pa-btn { font-size:12px; padding:2px 8px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:3px; cursor:pointer; transition:all .1s; }
+    .tree-node-project .project-actions .pa-btn:hover { border-color:#1E9FFF; color:#1E9FFF; }
+    .tree-node-project .project-actions .pa-btn.danger:hover { border-color:#e54d4d; color:#e54d4d; }
+
+    /* 页面节点 */
+    .tree-node-page > .tree-node-row { padding-left:24px; cursor:default; }
+    .tree-node-page > .tree-node-row:hover { background:#f0f7ff; }
+    .tree-node-page > .tree-node-row .tree-icon { color:#5FB878; }
+    .tree-node-page > .tree-node-row .tree-label { font-weight:400; color:#555; }
+    .tree-node-page .page-actions { display:none; gap:4px; margin-left:auto; flex-shrink:0; }
+    .tree-node-page:hover .page-actions { display:flex; }
+    .tree-node-page .page-actions .pa-btn { font-size:12px; padding:2px 8px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:3px; cursor:pointer; transition:all .1s; }
+    .tree-node-page .page-actions .pa-btn:hover { border-color:#5FB878; color:#5FB878; }
+
+    /* 未绑定域名节点 */
+    .tree-node-unbound > .tree-node-row { color:#999; font-style:italic; }
+
+    /* 空状态 */
+    .tree-empty { padding:30px; text-align:center; color:#bbb; font-size:14px; }
+    .loading-mask { padding:40px; text-align:center; color:#999; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="mp-header">
+    <h2><i class="fas fa-layer-group" style="color:#1E9FFF;margin-right:8px;"></i>多页面管理</h2>
+    <a href="{% url 'multi_page_create' %}" class="layui-btn layui-btn-normal">
+        <i class="fas fa-plus"></i> 创建项目
+    </a>
+</div>
+
+{# 视图切换工具栏 #}
+<div class="mp-toolbar">
+    <div class="mp-view-tabs">
+        <button class="tab-btn active" data-view="tree"><i class="fas fa-tree"></i> 树形视图</button>
+        <button class="tab-btn" data-view="card"><i class="fas fa-th-large"></i> 卡片视图</button>
+    </div>
+    <button class="layui-btn layui-btn-sm layui-btn-warm" id="btnCrosslink">
+        <i class="fas fa-link"></i> 智能互链
+    </button>
+    <span class="total-label" id="totalLabel">共 0 个项目</span>
+</div>
+
+{# ===== 树形视图 ===== #}
+<div class="tree-view active" id="treeView">
+    <div id="treeContainer"><div class="loading-mask">加载中...</div></div>
+</div>
+
+{# ===== 卡片视图（原有） ===== #}
+<div class="tree-view" id="cardView">
+    {% if projects %}
+    <div class="mp-card-wrap">
+        {% for p in projects %}
+        <div class="mp-card">
+            <div class="mp-card-body">
+                <div class="mp-card-title">
+                    <a href="{% url 'multi_page_project_detail' project_id=p.id %}">{{ p.name }}</a>
+                </div>
+                <div class="mp-card-domain">
+                    <i class="fas fa-globe"></i>
+                    {{ p.root_domain|default:'未绑定域名' }}
+                </div>
+                <div class="mp-card-theme">{{ p.theme|truncatechars:80 }}</div>
+                <div class="mp-card-meta">
+                    <span><i class="fas fa-file"></i> {{ p.total_pages }} 页</span>
+                    <span>
+                        <span class="mp-status-dot {{ p.status }}"></span>
+                        {{ p.get_status_display }}
+                    </span>
+                    <span><i class="far fa-clock"></i> {{ p.create_time|date:'m-d H:i' }}</span>
+                </div>
+            </div>
+            <div class="mp-card-actions">
+                <a href="{% url 'multi_page_project_detail' project_id=p.id %}" class="layui-btn layui-btn-sm layui-btn-primary">
+                    <i class="fas fa-eye"></i> 查看
+                </a>
+                <button class="layui-btn layui-btn-sm layui-btn-primary btn-delete-project" data-id="{{ p.id }}">
+                    <i class="fas fa-trash-alt"></i> 删除
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mp-empty">
+        <span class="empty-icon"><i class="fas fa-layer-group"></i></span>
+        <p>还没有创建任何项目</p>
+        <a href="{% url 'multi_page_create' %}" class="layui-btn layui-btn-normal">
+            <i class="fas fa-plus"></i> 创建第一个项目
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% block js %}
+<script>
+layui.use(['layer'], function() {
+    var layer = layui.layer;
+
+    // ============================================================
+    // 工具函数
+    // ============================================================
+    function escHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+    // ============================================================
+    // 视图切换
+    // ============================================================
+    document.querySelectorAll('.mp-view-tabs .tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.mp-view-tabs .tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var view = btn.getAttribute('data-view');
+            if (view === 'tree') {
+                document.getElementById('treeView').classList.add('active');
+                document.getElementById('cardView').classList.remove('active');
+            } else {
+                document.getElementById('treeView').classList.remove('active');
+                document.getElementById('cardView').classList.add('active');
+            }
+        });
+    });
+
+    // ============================================================
+    // 树形数据加载 & 渲染
+    // ============================================================
+    var treeData = null;
+
+    function loadTree() {
+        var container = document.getElementById('treeContainer');
+        container.innerHTML = '<div class="loading-mask">加载中...</div>';
+        return fetch('/xiaoying_admin/api/multi-page/tree/')
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                treeData = resp;
+                document.getElementById('totalLabel').textContent = '共 ' + resp.total_projects + ' 个项目';
+                renderTree();
+            })
+            .catch(function() {
+                container.innerHTML = '<div class="loading-mask" style="color:#FF5722;">加载失败</div>';
+            });
+    }
+
+    function renderTree() {
+        var container = document.getElementById('treeContainer');
+        if (!treeData) {
+            container.innerHTML = '<div class="loading-mask">加载中...</div>';
+            return;
+        }
+        var html = '';
+        var hasAny = false;
+
+        // 根域名分组
+        treeData.root_domains.forEach(function(group) {
+            if (group.projects.length === 0) return;
+            hasAny = true;
+            html += renderRootDomainNode(group);
+        });
+
+        // 未绑定域名
+        if (treeData.unbound && treeData.unbound.project_count > 0) {
+            hasAny = true;
+            html += renderUnboundNode(treeData.unbound);
+        }
+
+        if (!hasAny) {
+            html = '<div class="tree-empty"><i class="fas fa-folder-open" style="font-size:36px;display:block;margin-bottom:10px;color:#ddd;"></i>暂无项目数据</div>';
+        }
+
+        container.innerHTML = html;
+        bindTreeEvents();
+    }
+
+    function renderRootDomainNode(group) {
+        var html = '';
+        html += '<div class="tree-node tree-node-root">';
+        html += '<div class="tree-node-row" data-target="root">';
+        html += '<span class="tree-arrow"><i class="fas fa-caret-right"></i></span>';
+        html += '<span class="tree-icon"><i class="fas fa-globe"></i></span>';
+        html += '<span class="tree-label">' + escHtml(group.root_domain) + '</span>';
+        html += '<span class="tree-count">' + group.project_count + ' 个项目 / ' + group.page_count + ' 个页面</span>';
+        html += '</div>';
+        html += '<div class="tree-children">';
+        group.projects.forEach(function(proj) {
+            html += renderProjectNode(proj);
+        });
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderUnboundNode(data) {
+        var html = '';
+        html += '<div class="tree-node tree-node-root tree-node-unbound">';
+        html += '<div class="tree-node-row" data-target="unbound">';
+        html += '<span class="tree-arrow"><i class="fas fa-caret-right"></i></span>';
+        html += '<span class="tree-icon"><i class="fas fa-chain-broken" style="color:#bbb;"></i></span>';
+        html += '<span class="tree-label" style="color:#999;font-style:italic;">未绑定域名</span>';
+        html += '<span class="tree-count">' + data.project_count + ' 个项目</span>';
+        html += '</div>';
+        html += '<div class="tree-children">';
+        data.projects.forEach(function(proj) {
+            html += renderProjectNode(proj);
+        });
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderProjectNode(proj) {
+        var html = '';
+        html += '<div class="tree-node tree-node-project" data-project-id="' + proj.id + '">';
+        html += '<div class="tree-node-row" data-target="project">';
+        html += '<span class="tree-arrow"><i class="fas fa-caret-right"></i></span>';
+        html += '<span class="tree-icon"><i class="fas fa-folder"></i></span>';
+        html += '<span class="tree-label">' + escHtml(proj.name) + '</span>';
+        html += '<span class="tree-status ' + proj.status + '">' + escHtml(proj.status_display) + '</span>';
+        if (proj.is_enabled) {
+            html += '<span class="tree-status completed"><i class="fas fa-check-circle"></i> 已启用</span>';
+        }
+        html += '<span class="tree-count">' + proj.total_pages + ' 页</span>';
+        // 项目操作按钮
+        html += '<span class="project-actions">';
+        html += '<a href="' + proj.detail_url + '" class="pa-btn" title="查看"><i class="fas fa-eye"></i></a>';
+        html += '<button class="pa-btn btn-refresh-project" data-id="' + proj.id + '" title="刷新数据"><i class="fas fa-sync"></i></button>';
+        html += '<button class="pa-btn danger btn-del-project" data-id="' + proj.id + '" title="删除"><i class="fas fa-trash"></i></button>';
+        html += '</span>';
+        html += '</div>';
+        // 子页面
+        html += '<div class="tree-children">';
+        if (proj.pages && proj.pages.length > 0) {
+            proj.pages.forEach(function(page) {
+                html += renderPageNode(page, proj);
+            });
+        } else {
+            html += '<div class="tree-node tree-node-page"><div class="tree-node-row"><span class="tree-arrow no-children"></span><span class="tree-icon"><i class="fas fa-info-circle" style="color:#bbb;"></i></span><span class="tree-label" style="color:#bbb;font-style:italic;">暂无页面</span></div></div>';
+        }
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderPageNode(page, proj) {
+        var html = '';
+        html += '<div class="tree-node tree-node-page" data-page-id="' + page.id + '">';
+        html += '<div class="tree-node-row">';
+        html += '<span class="tree-arrow no-children"><i class="fas fa-caret-right"></i></span>';
+        html += '<span class="tree-icon"><i class="fas fa-file-alt"></i></span>';
+        html += '<span class="tree-label" title="' + escAttr(page.title || page.name) + '">' + escHtml(page.name) + '</span>';
+        if (page.url_path) {
+            html += '<span class="tree-count" style="background:#e3f2fd;color:#1565c0;">' + escHtml(page.url_path) + '</span>';
+        }
+        // 页面操作按钮
+        var previewUrl = '/xiaoying_admin/multi-page/page/' + page.id + '/preview/';
+        var editUrl = '/xiaoying_admin/multi-page/page/' + page.id + '/edit/';
+        html += '<span class="page-actions">';
+        html += '<a href="' + previewUrl + '" class="pa-btn" title="预览" target="_blank"><i class="fas fa-external-link-alt"></i></a>';
+        html += '<a href="' + editUrl + '" class="pa-btn" title="编辑"><i class="fas fa-edit"></i></a>';
+        html += '</span>';
+        html += '</div></div>';
+        return html;
+    }
+
+    // ============================================================
+    // 树形交互事件
+    // ============================================================
+    function bindTreeEvents() {
+        var container = document.getElementById('treeContainer');
+
+        // 展开/折叠
+        container.querySelectorAll('.tree-node-row[data-target]').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // 点击操作按钮时不触发展开
+                if (e.target.closest('.project-actions') || e.target.closest('.page-actions') || e.target.closest('.pa-btn')) return;
+                var children = row.nextElementSibling;
+                if (children && children.classList.contains('tree-children')) {
+                    children.classList.toggle('expanded');
+                    var arrow = row.querySelector('.tree-arrow');
+                    if (arrow) arrow.classList.toggle('expanded');
+                }
+            });
+        });
+
+        // 删除项目
+        container.querySelectorAll('.btn-del-project').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var id = btn.getAttribute('data-id');
+                layer.confirm('确定删除此项目及其所有页面？', {icon:3, title:'确认删除'}, function(index) {
+                    fetch('/xiaoying_admin/api/multi-page/' + id + '/delete/', {method:'POST'})
+                        .then(function(r){return r.json()})
+                        .then(function(resp){
+                            if(resp.error) return layer.msg(resp.error,{icon:2});
+                            layer.msg('已删除',{icon:1,time:800},function(){loadTree()});
+                        });
+                    layer.close(index);
+                });
+            });
+        });
+
+        // 刷新项目
+        container.querySelectorAll('.btn-refresh-project').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                loadTree();
+                layer.msg('已刷新', {icon:1, time:800});
+            });
+        });
+    }
+
+    // ============================================================
+    // 卡片视图删除（原有逻辑）
+    // ============================================================
+    document.querySelectorAll('.btn-delete-project').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.getAttribute('data-id');
+            layer.confirm('确定删除此项目及其所有页面？', {icon:3,title:'确认'}, function(index) {
+                fetch('/xiaoying_admin/api/multi-page/' + id + '/delete/', {method:'POST'})
+                    .then(function(r){return r.json()})
+                    .then(function(resp){
+                        if(resp.error) return layer.msg(resp.error,{icon:2});
+                        layer.msg('已删除',{icon:1,time:800},function(){location.reload()});
+                    });
+                layer.close(index);
+            });
+        });
+    });
+
+    // ============================================================
+    // 智能互链
+    // ============================================================
+    document.getElementById('btnCrosslink').addEventListener('click', function() {
+        layer.confirm(
+            '遍历所有<strong>已启用 + 未排除</strong>的多页面项目，为每个项目下的所有页面<strong>追加</strong>其他项目域名的友情链接。<br>' +
+            '已有互链块会被整体替换，保证结果一致（幂等）。<br>' +
+            '<span style="color:#FF9800;font-size:12px;">此操作会修改所有参与项目的页面 HTML，请确认已备份。</span>',
+            { icon: 3, title: '智能互链（项目间）', btn: ['开始生成', '取消'] },
+            function(index) {
+                layer.close(index);
+                var idx = layer.load(1, { shade: [0.3, '#000'] });
+                fetch('/xiaoying_admin/api/multi-page/crosslinks/generate/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    layer.close(idx);
+                    if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                    layer.msg(resp.message, {icon:1, time:3000});
+                    // 刷新树形视图
+                    loadTree();
+                }).catch(function() { layer.close(idx); layer.msg('网络错误', {icon:2}); });
+            }
+        );
+    });
+
+    // ============================================================
+    // 初始化（layui.use 回调执行时 DOM 一定已就绪）
+    // ============================================================
+    loadTree();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+<script>
+// ============================================================
+// 页面列表 — 智能互链
+// ============================================================
+
+document.getElementById('btnCrosslink').addEventListener('click', function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载分类...';
+
+    fetch('/xiaoying_admin/api/pages/categories/')
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-link"></i> 智能互链';
+            var cats = resp.categories || [];
+
+            // 获取页面计数（从 treeData）
+            var catPageCounts = {};
+            if (window.treeData && treeData.categories) {
+                treeData.categories.forEach(function(cat) {
+                    catPageCounts[cat.id] = cat.page_count || 0;
+                });
+            }
+
+            // 构造选项
+            var optHtml = '';
+            // "全部域名"卡片
+            optHtml += '<div class="cl-option active" data-value="">'
+                + '<div class="cl-option-radio"></div>'
+                + '<div class="cl-option-icon"><i class="fas fa-globe-asia"></i></div>'
+                + '<div class="cl-option-info">'
+                + '<div class="cl-option-name">全部域名</div>'
+                + '<div class="cl-option-desc">对所有未排除的页面进行智能互链</div>'
+                + '</div>'
+                + '</div>';
+
+            if (cats.length > 0) {
+                optHtml += '<div class="cl-divider">按分类互链</div>';
+                cats.forEach(function(c) {
+                    var count = catPageCounts[c.id] || 0;
+                    optHtml += '<div class="cl-option" data-value="' + c.id + '">'
+                        + '<div class="cl-option-radio"></div>'
+                        + '<div class="cl-option-icon"><i class="fas fa-folder"></i></div>'
+                        + '<div class="cl-option-info">'
+                        + '<div class="cl-option-name">' + escHtml(c.name) + '</div>'
+                        + '<div class="cl-option-desc">' + count + ' 个页面参与互链</div>'
+                        + '</div>'
+                        + '<span class="cl-option-count">' + count + '</span>'
+                        + '</div>';
+                });
+            }
+
+            // 构造完整内容（含搜索框）
+            var content = '<div class="cl-modal-body">'
+                + '<input type="text" class="cl-search-input" id="clSearchInput" placeholder="搜索分类..." oninput="filterCrosslinkCategories(this)">'
+                + '<div class="cl-option-list" id="clOptionList">' + optHtml + '</div>'
+                + '</div>';
+
+            layer.open({
+                type: 1,
+                title: '<i class="fas fa-link" style="color:#5FB878;"></i> 智能互链',
+                area: ['460px', '480px'],
+                shadeClose: true,
+                btn: ['开始互链', '取消'],
+                content: content,
+                yes: function(index) {
+                    var sel = document.querySelector('.cl-option.active');
+                    var catId = sel ? sel.getAttribute('data-value') : '';
+                    layer.close(index);
+                    doCrosslink(catId);
+                },
+                success: function(layero) {
+                    // 选项点击
+                    layero.find('.cl-option').on('click', function() {
+                        layero.find('.cl-option').removeClass('active');
+                        this.classList.add('active');
+                    });
+                }
+            });
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-link"></i> 智能互链';
+            layer.msg('加载分类失败', {icon:2});
+        });
+});
+
+// 搜索过滤分类选项（oninput 内联调用）
+function filterCrosslinkCategories(input) {
+    var kw = input.value.trim().toLowerCase();
+    var list = document.querySelector('.cl-option-list');
+    if (!list) return;
+    var opts = list.querySelectorAll('.cl-option');
+    var divider = list.querySelector('.cl-divider');
+    var hasVisible = false;
+    opts.forEach(function(opt) {
+        if (opt.getAttribute('data-value') === '') return; // 跳过"全部域名"
+        var nameEl = opt.querySelector('.cl-option-name');
+        var name = nameEl ? nameEl.textContent.toLowerCase() : '';
+        if (kw && name.indexOf(kw) === -1) {
+            opt.style.display = 'none';
+        } else {
+            opt.style.display = '';
+            hasVisible = true;
+        }
+    });
+    if (divider) {
+        divider.style.display = hasVisible ? '' : 'none';
+    }
+}
+
+function doCrosslink(categoryId) {
+    var payload = {};
+    if (categoryId) {
+        payload.category_id = parseInt(categoryId, 10);
+    }
+    layer.confirm(
+        (categoryId
+            ? '仅对<strong>当前分类</strong>下的未排除页面进行智能互链。<br>'
+            : '遍历<strong>所有未排除</strong>的页面进行智能互链。<br>') +
+        '每个页面会链接同组其他页面的根域名。<br>' +
+        '<span style="color:#FF9800;font-size:12px;">此操作不可撤销，请确认已备份重要数据。</span>',
+        { icon: 3, title: '确认执行', btn: ['开始', '取消'] },
+        function(index) {
+            layer.close(index);
+            var idx = layer.load(1, { shade: [0.3, '#000'] });
+            fetch('/xiaoying_admin/api/crosslinks/generate/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify(payload),
+            }).then(function(r) { return r.json(); }).then(function(resp) {
+                layer.close(idx);
+                if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                layer.msg(resp.message, {icon:1, time:3000});
+            }).catch(function() { layer.close(idx); layer.msg('网络错误', {icon:2}); });
+        }
+    );
+}
+</script>

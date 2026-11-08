@@ -1,0 +1,563 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+{% block title %}{{ project.name }} - 项目详情{% endblock %}
+{% block head %}
+<style>
+    .pd-header { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:20px 24px; margin-bottom:16px; }
+    .pd-header-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    .pd-header-top h2 { margin:0; font-size:18px; color:#2D3748; }
+    .pd-header-top h2 small { font-size:13px; color:#999; font-weight:400; margin-left:8px; }
+    .pd-info { display:flex; gap:20px; margin-top:12px; font-size:13px; color:#666; flex-wrap:wrap; }
+    .pd-info i { width:16px; margin-right:4px; }
+    .pd-progress-bar { height:4px; background:#e8e8e8; border-radius:2px; margin-top:12px; overflow:hidden; display:none; }
+    .pd-progress-bar .bar { height:100%; background:linear-gradient(90deg,#5FB878,#1E9FFF); border-radius:2px; transition:width .5s; width:0; }
+    .pd-progress-msg { font-size:12px; color:#999; margin-top:6px; display:none; }
+
+    .pd-body { display:flex; gap:16px; }
+    .pd-sidebar { width:260px; flex-shrink:0; }
+    .pd-main { flex:1; min-width:0; }
+
+    /* 导航栏管理 */
+    .pd-nav-card { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); overflow:hidden; }
+    .pd-nav-header { padding:14px 18px; border-bottom:1px solid #f0f0f0; font-size:14px; font-weight:600; color:#2D3748; display:flex; align-items:center; justify-content:space-between; }
+    .pd-nav-list { padding:8px 0; min-height:60px; }
+    .pd-nav-item { display:flex; align-items:center; padding:8px 18px; cursor:pointer; transition:background .15s; gap:8px; font-size:13px; }
+    .pd-nav-item:hover { background:#f5f7fa; }
+    .pd-nav-item .drag-handle { color:#ccc; cursor:grab; font-size:12px; }
+    .pd-nav-item .nav-title { flex:1; color:#333; }
+    .pd-nav-item .nav-path { font-size:11px; color:#999; }
+
+    /* 页面列表面板 */
+    .pd-pages-card { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); overflow:hidden; }
+    .pd-pages-header { padding:14px 20px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; }
+    .pd-pages-header .left { display:flex; align-items:center; gap:12px; }
+    .pd-pages-header .left h3 { margin:0; font-size:15px; color:#2D3748; }
+    .pd-pages-header .left h3 i { color:#1E9FFF; margin-right:6px; }
+    .pd-pages-header .count { font-size:12px; color:#999; background:#f6f6f6; padding:2px 8px; border-radius:10px; }
+
+    .pd-table { width:100%; border-collapse:collapse; }
+    .pd-table th { padding:10px 16px; text-align:left; font-size:12px; color:#999; border-bottom:1px solid #f0f0f0; background:#fafafa; white-space:nowrap; }
+    .pd-table td { padding:10px 16px; border-bottom:1px solid #f5f5f5; font-size:13px; vertical-align:middle; }
+    .pd-table tr:hover td { background:#f9fbfd; }
+    .pd-table .page-name { font-weight:500; color:#2D3748; }
+    .pd-table .page-path { font-size:12px; color:#1E9FFF; }
+    .pd-table .page-seo-title { font-size:12px; color:#666; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pd-table .page-actions { white-space:nowrap; }
+    .pd-table .page-actions .layui-btn { height:26px; line-height:26px; padding:0 10px; font-size:12px; }
+
+    .pd-empty { text-align:center; padding:60px 20px; color:#999; }
+    .pd-empty i { font-size:40px; margin-bottom:10px; }
+
+    /* 生成进度 */
+    .gen-overlay { position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .gen-modal { background:#fff; border-radius:10px; padding:40px 48px 32px; text-align:center; max-width:420px; width:90%; position:relative; box-shadow:0 8px 32px rgba(0,0,0,.18); }
+    .gen-modal .close-btn { position:absolute; top:12px; right:16px; width:28px; height:28px; border:none; background:none; font-size:20px; color:#bbb; cursor:pointer; border-radius:4px; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+    .gen-modal .close-btn:hover { background:#f5f5f5; color:#666; }
+    .gen-modal .spinner { font-size:42px; color:#1E9FFF; animation:spin 1.2s linear infinite; margin-bottom:14px; }
+    @keyframes spin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+    .gen-modal .gen-msg { font-size:15px; color:#2D3748; margin-bottom:4px; }
+    .gen-modal .gen-sub { font-size:12px; color:#999; }
+
+    .page-preview-link { color:#5FB878; text-decoration:none; font-size:12px; margin-left:4px; }
+    .page-preview-link:hover { text-decoration:underline; }
+
+    /* 域名绑定 */
+    .pd-domain-card { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); padding:14px 20px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .pd-domain-card .domain-status { display:flex; align-items:center; gap:8px; font-size:14px; }
+    .pd-domain-card .domain-status .badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px; font-weight:600; }
+    .pd-domain-card .domain-status .badge.on { background:#e8f5e9; color:#2e7d32; }
+    .pd-domain-card .domain-status .badge.off { background:#fbe9e7; color:#c62828; }
+    .pd-domain-card .domain-value { font-size:13px; color:#1E9FFF; font-weight:500; }
+</style>
+{% endblock %}
+{% block body %}
+
+<!-- 顶部信息 -->
+<div class="pd-header">
+    <div class="pd-header-top">
+        <h2>
+            <i class="fas fa-layer-group" style="color:#1E9FFF;margin-right:6px;"></i>{{ project.name }}
+            <small>{{ project.get_status_display }}</small>
+        </h2>
+        <div>
+            {% if project.status == 'draft' or project.status == 'failed' %}
+            <button class="layui-btn layui-btn-normal" id="btnStartGen">
+                <i class="fas fa-magic"></i> AI 生成多页面
+            </button>
+            {% endif %}
+            {% if project.status == 'completed' %}
+            <button class="layui-btn layui-btn-warm" id="btnRegen">
+                <i class="fas fa-sync-alt"></i> 重新生成
+            </button>
+            {% endif %}
+            <button class="layui-btn layui-btn-sm" id="btnShowProgress" style="display:none;">
+                <i class="fas fa-chart-simple"></i> 查看进度
+            </button>
+            <a href="{% url 'multi_page_list' %}" class="layui-btn layui-btn-primary"><i class="fas fa-arrow-left"></i> 返回列表</a>
+        </div>
+    </div>
+    <div class="pd-info">
+        <span><i class="fas fa-globe"></i> {{ project.root_domain|default:'未绑定域名' }}</span>
+        <span><i class="fas fa-file"></i> {{ pages|length }} 个页面</span>
+        <span><i class="fas fa-tag"></i> {{ project.get_style_display|default:project.style }}</span>
+        <span><i class="far fa-clock"></i> 创建于 {{ project.create_time|date:'Y-m-d H:i' }}</span>
+    </div>
+    <div class="pd-progress-bar" id="progressBar"><div class="bar" id="progressFill"></div></div>
+    <div class="pd-progress-msg" id="progressMsg"></div>
+</div>
+
+<!-- 域名绑定卡片 -->
+<div class="pd-domain-card">
+    <div class="domain-status">
+        {% if project.is_enabled %}
+        <span class="badge on">已启用</span>
+        <span class="domain-value">{{ project.enabled_domain }}</span>
+        {% else %}
+        <span class="badge off">未启用</span>
+        <span>尚未绑定域名</span>
+        {% endif %}
+    </div>
+    <div>
+        {% if project.status == 'completed' %}
+            {% if project.is_enabled %}
+            <button class="layui-btn layui-btn-sm layui-btn-primary" id="btnDisable">
+                <i class="fas fa-stop"></i> 停用
+            </button>
+            {% else %}
+            <button class="layui-btn layui-btn-sm layui-btn-normal" id="btnEnable">
+                <i class="fas fa-play"></i> 启用
+            </button>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- 智能互链控制卡片 -->
+<div class="pd-domain-card">
+    <div class="domain-status">
+        <i class="fas fa-link" style="color:#FFB800;"></i>
+        <span style="font-size:14px;">智能互链：</span>
+        {% if project.crosslink_excluded %}
+        <span class="badge off">已排除</span>
+        {% else %}
+        <span class="badge on">参与中</span>
+        {% endif %}
+    </div>
+    <div>
+        {% if project.crosslink_excluded %}
+        <button class="layui-btn layui-btn-sm layui-btn-normal" id="btnCrosslinkInclude">
+            <i class="fas fa-toggle-on"></i> 纳入互链
+        </button>
+        {% else %}
+        <button class="layui-btn layui-btn-sm layui-btn-primary" id="btnCrosslinkExclude">
+            <i class="fas fa-toggle-off"></i> 排除互链
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="pd-body">
+    <!-- 左侧：导航栏 -->
+    <div class="pd-sidebar">
+        <div class="pd-nav-card">
+            <div class="pd-nav-header">
+                <span><i class="fas fa-bars" style="color:#1E9FFF;margin-right:6px;"></i>导航栏</span>
+                {% if project.nav_config %}
+                <span style="font-size:12px;color:#999;">{{ project.nav_config|length }} 项</span>
+                {% endif %}
+            </div>
+            <div class="pd-nav-list" id="navList">
+                {% if project.nav_config %}
+                    {% for nav in project.nav_config %}
+                    <div class="pd-nav-item" data-path="{{ nav.url_path }}">
+                        <span class="drag-handle"><i class="fas fa-grip-lines"></i></span>
+                        <span class="nav-title">{{ nav.title }}</span>
+                        <span class="nav-path">{{ nav.url_path }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align:center;padding:24px 18px;color:#ccc;font-size:13px;">
+                        <i class="fas fa-info-circle"></i> 生成后自动创建
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧：页面列表 -->
+    <div class="pd-main">
+        <div class="pd-pages-card">
+            <div class="pd-pages-header">
+                <div class="left">
+                    <h3><i class="fas fa-file-alt"></i>页面列表</h3>
+                    <span class="count">{{ pages|length }} 页</span>
+                </div>
+                {% if project.status == 'completed' %}
+                <button class="layui-btn layui-btn-sm layui-btn-normal" id="btnAddPage">
+                    <i class="fas fa-plus"></i> 添加页面
+                </button>
+                {% endif %}
+            </div>
+
+            {% if pages %}
+            <table class="pd-table">
+                <thead>
+                    <tr>
+                        <th style="width:30px;">#</th>
+                        <th>页面名称</th>
+                        <th>URL 路径</th>
+                        <th>SEO 标题</th>
+                        <th style="width:160px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for page in pages %}
+                    <tr>
+                        <td style="color:#999;">{{ forloop.counter }}</td>
+                        <td>
+                            <span class="page-name">{{ page.name }}</span>
+                        </td>
+                        <td>
+                            <span class="page-path">{{ page.url_path }}</span>
+                            <a href="{% url 'multi_page_preview' page_id=page.id %}" target="_blank" class="page-preview-link"><i class="fas fa-external-link-alt"></i> 预览</a>
+                        </td>
+                        <td><span class="page-seo-title" title="{{ page.title }}">{{ page.title|truncatechars:30 }}</span></td>
+                        <td class="page-actions">
+                            <a href="{% url 'multi_page_edit' page_id=page.id %}" class="layui-btn layui-btn-sm">
+                                <i class="fas fa-edit"></i> 编辑
+                            </a>
+                            <button class="layui-btn layui-btn-sm layui-btn-primary btn-delete-page" data-id="{{ page.id }}" data-name="{{ page.name }}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="pd-empty">
+                <i class="fas fa-file-alt"></i>
+                {% if project.status == 'draft' %}
+                <p id="emptyStateText">项目尚未生成页面，点击右上角「AI 生成多页面」开始</p>
+            {% elif project.status == 'generating' %}
+                <p id="emptyStateText">正在生成中...</p>
+            {% else %}
+                <p id="emptyStateText">暂无页面</p>
+            {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 生成中的遮罩层 -->
+<div class="gen-overlay" id="genOverlay" style="display:none;">
+    <div class="gen-modal">
+        <button class="close-btn" id="genCloseBtn" title="最小化到后台">&times;</button>
+        <div class="spinner"><i class="fas fa-circle-notch"></i></div>
+        <div class="gen-msg" id="genMsg">正在生成多页面...</div>
+        <div class="gen-sub" id="genSub">AI 正在根据主题创建完整站点</div>
+        <div style="margin-top:18px; width:100%; background:#e8e8e8; border-radius:4px; height:8px; overflow:hidden;">
+            <div id="genProgressFill" style="height:100%;background:linear-gradient(90deg,#5FB878,#1E9FFF);border-radius:4px;width:10%;transition:width .5s;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block js %}
+<script>
+layui.use(['layer'], function() {
+    var layer = layui.layer;
+    var projectId = {{ project.id }};
+    var status = '{{ project.status }}';
+
+    // 显示当前状态
+    if (status === 'generating') {
+        showGenOverlay();
+        startPolling();
+    }
+
+    // ---- 启用 / 停用 ----
+    document.getElementById('btnEnable') && document.getElementById('btnEnable').addEventListener('click', function() {
+        layer.prompt({title:'输入要绑定的域名', formType:3, placeholder:'例如：example.com', area:['400px']}, function(domain, index) {
+            if (!domain || !domain.trim()) {
+                layer.msg('域名不能为空', {icon:2});
+                return;
+            }
+            doEnable(domain.trim(), index);
+        });
+    });
+
+    function doEnable(domain, promptIndex) {
+        fetch('/xiaoying_admin/api/multi-page/' + projectId + '/enable/', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({domain: domain}),
+        }).then(function(r){
+            if (r.status === 409) return r.json().then(function(resp) {
+                // 域名被占用，询问是否强制绑定
+                var occ = resp.occupier;
+                var typeLabel = occ.type === 'multi_page' ? '多页面项目' : '单页面';
+                layer.confirm(
+                    '域名「' + domain + '」已被' + typeLabel + '「' + occ.name + '」占用。<br>确定解除其绑定并绑定到当前项目吗？',
+                    {icon:3, title:'域名已被占用', area:['450px']},
+                    function(confirmIdx) {
+                        // 用户确认 → force 绑定
+                        fetch('/xiaoying_admin/api/multi-page/' + projectId + '/enable/', {
+                            method:'POST',
+                            headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({domain: domain, force: true}),
+                        }).then(function(fr){return fr.json()}).then(function(fresp){
+                            if (fresp.error) return layer.msg(fresp.error, {icon:2,time:4000});
+                            layer.msg(fresp.message, {icon:1,time:1500}, function(){location.reload()});
+                            layer.close(confirmIdx);
+                        });
+                    }
+                );
+            });
+            return r.json();
+        }).then(function(resp){
+            if (!resp) return;
+            if (resp.error) return layer.msg(resp.error, {icon:2,time:4000});
+            layer.msg(resp.message, {icon:1,time:1500}, function(){location.reload()});
+            if (promptIndex) layer.close(promptIndex);
+        });
+    }
+
+    document.getElementById('btnDisable') && document.getElementById('btnDisable').addEventListener('click', function() {
+        layer.confirm('确定停用并解绑域名？', {icon:3,title:'确认'}, function(idx) {
+            fetch('/xiaoying_admin/api/multi-page/' + projectId + '/disable/', {method:'POST'})
+            .then(function(r){return r.json()}).then(function(resp){
+                if(resp.error) return layer.msg(resp.error,{icon:2});
+                layer.msg(resp.message,{icon:1,time:1500},function(){location.reload()});
+            });
+            layer.close(idx);
+        });
+    });
+
+    // ---- 生成进度管理 ----
+    var pollingTimer = null;
+    var overlayVisible = true;
+
+    function showGenOverlay() {
+        document.getElementById('genOverlay').style.display = 'flex';
+        overlayVisible = true;
+        document.getElementById('btnShowProgress').style.display = 'none';
+    }
+
+    function hideGenOverlay() {
+        document.getElementById('genOverlay').style.display = 'none';
+        overlayVisible = false;
+        document.getElementById('btnShowProgress').style.display = '';
+    }
+
+    // 关闭按钮 → 始终可以关闭，生成继续在后台运行
+    document.getElementById('genCloseBtn').addEventListener('click', function() {
+        hideGenOverlay();
+    });
+
+    // 恢复按钮 → 重新打开弹窗
+    document.getElementById('btnShowProgress').addEventListener('click', function() {
+        showGenOverlay();
+    });
+
+    function updateButtonState(generating) {
+        // 切换「AI 生成多页面」按钮的文字
+        var btn = document.getElementById('btnStartGen');
+        if (btn) {
+            btn.innerHTML = generating
+                ? '<i class="fas fa-spinner fa-pulse"></i> 正在生成中...'
+                : '<i class="fas fa-magic"></i> AI 生成多页面';
+            btn.disabled = generating;
+        }
+        // 更新空状态文字
+        var emptyEl = document.getElementById('emptyStateText');
+        if (emptyEl) {
+            emptyEl.textContent = generating
+                ? '正在生成中，请稍候...'
+                : '项目尚未生成页面，点击右上角「AI 生成多页面」开始';
+        }
+        // 更新页面标题
+        var reBtn = document.getElementById('btnRegen');
+        if (reBtn) {
+            reBtn.innerHTML = generating
+                ? '<i class="fas fa-spinner fa-pulse"></i> 正在生成中...'
+                : '<i class="fas fa-sync-alt"></i> 重新生成';
+            reBtn.disabled = generating;
+        }
+    }
+
+    function startPolling() {
+        if (pollingTimer) return;
+        updateButtonState(true);
+        pollingTimer = setInterval(function() {
+            fetch('/xiaoying_admin/api/multi-page/' + projectId + '/progress/')
+            .then(function(r){return r.json()}).then(function(data){
+                var pct = data.percent || 0;
+                var msg = data.message || '';
+
+                // 更新弹窗
+                document.getElementById('genMsg').textContent = msg;
+                document.getElementById('genSub').textContent = '已完成 ' + pct + '%';
+                document.getElementById('genProgressFill').style.width = pct + '%';
+
+                // 更新头部进度条（不管弹窗是否可见都更新）
+                var bar = document.getElementById('progressBar');
+                var fill = document.getElementById('progressFill');
+                var msgEl = document.getElementById('progressMsg');
+                bar.style.display = 'block';
+                fill.style.width = pct + '%';
+                msgEl.style.display = 'block';
+                msgEl.textContent = msg + ' (' + pct + '%)';
+
+                if (data.done || data.error) {
+                    clearInterval(pollingTimer);
+                    pollingTimer = null;
+                    updateButtonState(false);
+                    hideGenOverlay();
+                    document.getElementById('btnShowProgress').style.display = 'none';
+                    bar.style.display = 'none';
+                    msgEl.style.display = 'none';
+                    if (data.error) {
+                        layer.confirm(
+                            '<b>生成失败</b><br><br>' + data.error + '<br><br>是否重新生成？',
+                            {icon:5, title:'生成异常', area:['480px'], btn:['重新生成','取消']},
+                            function(idx) {
+                                layer.close(idx);
+                                // 调用重新生成
+                                fetch('/xiaoying_admin/api/multi-page/' + projectId + '/regenerate/', {method:'POST'})
+                                .then(function(r){return r.json()}).then(function(resp){
+                                    if(resp.error) return layer.msg(resp.error,{icon:2});
+                                    showGenOverlay();
+                                    startPolling();
+                                });
+                            }
+                        );
+                    } else {
+                        layer.msg('生成完成！', {icon:1,time:1500}, function() {
+                            location.reload();
+                        });
+                    }
+                }
+            });
+        }, 1500);
+    }
+
+    // 启动生成
+    function startGeneration() {
+        fetch('/xiaoying_admin/api/multi-page/' + projectId + '/generate/', {method:'POST'})
+        .then(function(r){return r.json()}).then(function(resp){
+            if(resp.error) return layer.msg(resp.error,{icon:2});
+            showGenOverlay();
+            startPolling();
+        });
+    }
+
+    document.getElementById('btnStartGen') && document.getElementById('btnStartGen').addEventListener('click', function() {
+        startGeneration();
+    });
+
+    // ---- 智能互链排除/纳入 ----
+    function toggleCrosslink(excluded) {
+        fetch('/xiaoying_admin/api/multi-page/' + projectId + '/crosslink-exclude-toggle/', {
+            method:'POST',
+            headers:{'Content-Type':'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify({excluded: excluded}),
+        }).then(function(r){return r.json()}).then(function(resp){
+            if(resp.error) return layer.msg(resp.error,{icon:2});
+            layer.msg(resp.message, {icon:1, time:1200}, function(){ location.reload(); });
+        }).catch(function(){ layer.msg('网络错误', {icon:2}); });
+    }
+    document.getElementById('btnCrosslinkExclude') && document.getElementById('btnCrosslinkExclude').addEventListener('click', function() {
+        layer.confirm('排除后该项目下的所有页面将不再参与智能互链，已有互链块需要手动清理。确定排除？', {icon:3,title:'确认排除'}, function(idx) {
+            layer.close(idx);
+            toggleCrosslink(true);
+        });
+    });
+    document.getElementById('btnCrosslinkInclude') && document.getElementById('btnCrosslinkInclude').addEventListener('click', function() {
+        toggleCrosslink(false);
+    });
+
+    document.getElementById('btnRegen') && document.getElementById('btnRegen').addEventListener('click', function() {
+        layer.confirm('重新生成将删除所有已有页面，确定继续？', {icon:3,title:'确认'}, function(idx) {
+            layer.close(idx);
+            fetch('/xiaoying_admin/api/multi-page/' + projectId + '/regenerate/', {method:'POST'})
+            .then(function(r){return r.json()}).then(function(resp){
+                if(resp.error) return layer.msg(resp.error,{icon:2});
+                showGenOverlay();
+                startPolling();
+            });
+        });
+    });
+
+    // 删除页面
+    document.querySelectorAll('.btn-delete-page').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.getAttribute('data-id');
+            var name = this.getAttribute('data-name');
+            layer.confirm('删除页面「' + name + '」？', {icon:3,title:'确认'}, function(idx) {
+                fetch('/xiaoying_admin/api/multi-page/page/' + id + '/delete/', {method:'POST'})
+                .then(function(r){return r.json()}).then(function(resp){
+                    if(resp.error) return layer.msg(resp.error,{icon:2});
+                    layer.msg('已删除',{icon:1,time:800},function(){location.reload()});
+                });
+                layer.close(idx);
+            });
+        });
+    });
+
+    // 添加页面（弹出表单）
+    document.getElementById('btnAddPage') && document.getElementById('btnAddPage').addEventListener('click', function() {
+        layer.open({
+            type: 1,
+            title: '添加页面',
+            area: ['520px', '360px'],
+            shadeClose: true,
+            content: [
+                '<div style="padding:20px 24px;">',
+                '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">页面名称</label>',
+                '<div class="layui-input-block" style="margin-left:100px;"><input id="addPageName" class="layui-input" placeholder="例如：产品中心"></div></div>',
+                '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">URL 路径</label>',
+                '<div class="layui-input-block" style="margin-left:100px;"><input id="addPagePath" class="layui-input" placeholder="/products.html"></div></div>',
+                '<div class="layui-form-item"><label class="layui-form-label" style="width:80px;">SEO 标题</label>',
+                '<div class="layui-input-block" style="margin-left:100px;"><input id="addPageTitle" class="layui-input"></div></div>',
+                '<div style="margin-top:20px;text-align:center;">',
+                '<button class="layui-btn" id="addPageSubmit"><i class="fas fa-plus"></i> 添加</button>',
+                '</div></div>',
+            ].join(''),
+            success: function(layero, index) {
+                // 自动生成 URL 路径
+                document.getElementById('addPageName').addEventListener('input', function() {
+                    var pathEl = document.getElementById('addPagePath');
+                    if (!pathEl._manual) {
+                        var name = this.value.trim();
+                        if (name) {
+                            pathEl.value = '/' + name.toLowerCase().replace(/[\s]+/g, '-').replace(/[^\w\-/]/g, '') + '.html';
+                        }
+                    }
+                });
+                document.getElementById('addPagePath').addEventListener('input', function() {
+                    this._manual = !!this.value;
+                });
+
+                document.getElementById('addPageSubmit').addEventListener('click', function() {
+                    var name = document.getElementById('addPageName').value.trim();
+                    var path = document.getElementById('addPagePath').value.trim();
+                    var title = document.getElementById('addPageTitle').value.trim();
+                    if (!name) return layer.msg('请输入页面名称', {icon:2});
+                    if (!path) return layer.msg('请输入URL路径', {icon:2});
+
+                    fetch('/xiaoying_admin/api/multi-page/' + projectId + '/add-page/', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({name:name, url_path:path, title:title}),
+                    }).then(function(r){return r.json()}).then(function(resp){
+                        if(resp.error) return layer.msg(resp.error,{icon:2});
+                        layer.msg('已添加',{icon:1,time:800},function(){location.reload()});
+                        layer.close(index);
+                    });
+                });
+            },
+        });
+    });
+});
+</script>
+{% endblock %}

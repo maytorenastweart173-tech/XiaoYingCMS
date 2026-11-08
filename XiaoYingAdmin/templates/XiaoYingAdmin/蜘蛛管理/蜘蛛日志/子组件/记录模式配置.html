@@ -1,0 +1,140 @@
+{# 蜘蛛日志 — 记录模式（现代化卡片风格） #}
+<div class="mode-card">
+    <div class="mode-card-header">
+        <span class="mode-card-title"><i class="fas fa-cog"></i> 记录模式</span>
+        <span class="mode-status-badge mode-status-{{ config.log_mode }}">
+            {% if config.log_mode == 'disabled' %}
+                已关闭
+            {% elif config.log_mode == 'spider_only' %}
+                仅爬虫
+            {% else %}
+                全部访问
+            {% endif %}
+        </span>
+    </div>
+    <div class="mode-card-body">
+        <form method="post" action="">
+            {% csrf_token %}
+            <div class="mode-options">
+                <label class="mode-radio">
+                    <input type="radio" name="log_mode" value="all"
+                           {% if config.log_mode == 'all' %}checked{% endif %}>
+                    <span class="mode-radio-dot" style="border-color:#2ecc71;"></span>
+                    <span class="mode-radio-inner" style="background:#2ecc71;"></span>
+                    <span class="mode-radio-text">
+                        <strong style="color:#2ecc71;">全部访问</strong>
+                        <span class="mode-radio-desc">记录所有请求（爬虫+真人）</span>
+                    </span>
+                </label>
+
+                <label class="mode-radio">
+                    <input type="radio" name="log_mode" value="spider_only"
+                           {% if config.log_mode == 'spider_only' %}checked{% endif %}>
+                    <span class="mode-radio-dot" style="border-color:#f39c12;"></span>
+                    <span class="mode-radio-inner" style="background:#f39c12;"></span>
+                    <span class="mode-radio-text">
+                        <strong style="color:#f39c12;">仅爬虫</strong>
+                        <span class="mode-radio-desc">只记录被识别的爬虫访问</span>
+                    </span>
+                </label>
+
+                <label class="mode-radio">
+                    <input type="radio" name="log_mode" value="disabled"
+                           {% if config.log_mode == 'disabled' %}checked{% endif %}>
+                    <span class="mode-radio-dot" style="border-color:#999;"></span>
+                    <span class="mode-radio-inner" style="background:#999;"></span>
+                    <span class="mode-radio-text">
+                        <strong style="color:#999;">关闭</strong>
+                        <span class="mode-radio-desc">不记录任何访问</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="mode-path-filter">
+                <i class="fas fa-ban" style="color:#e74c3c;font-size:11px;"></i>
+                路径过滤
+                <a href="/xiaoying_admin/spider/logs/ignore-paths/" target="_blank" class="mode-path-link">
+                    前往配置 <i class="fas fa-external-link-alt" style="font-size:10px;"></i>
+                </a>
+            </div>
+
+            <button type="submit" class="mode-save-btn">
+                <i class="fas fa-save"></i> 保存模式
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+/* ===== 记录模式卡片 ===== */
+.mode-card {
+    background: #fff; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.03);
+    border: 1px solid #f0f0f0; margin-bottom: 18px;
+}
+.mode-card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px; border-bottom: 1px solid #f0f0f0;
+}
+.mode-card-title { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+.mode-card-title i { color: #5FB878; margin-right: 4px; }
+.mode-status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.mode-status-all { background: #e8f8ee; color: #1a7d3a; }
+.mode-status-spider_only { background: #fff3e0; color: #e65100; }
+.mode-status-disabled { background: #f0f0f0; color: #888; }
+
+.mode-card-body { padding: 16px 18px; }
+
+.mode-options { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 14px; }
+
+/* 自定义单选按钮 */
+.mode-radio {
+    cursor: pointer; display: inline-flex; align-items: center; gap: 10px;
+    position: relative; padding-left: 26px; user-select: none;
+}
+.mode-radio input { position: absolute; width: 0; height: 0; opacity: 0; }
+.mode-radio-dot {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ccc;
+    box-sizing: border-box; transition: all .2s;
+}
+.mode-radio-inner {
+    position: absolute; left: 5px; top: 50%; transform: translateY(-50%) scale(0);
+    width: 8px; height: 8px; border-radius: 50%; transition: transform .2s;
+}
+.mode-radio input:checked ~ .mode-radio-inner { transform: translateY(-50%) scale(1); }
+.mode-radio:hover .mode-radio-dot { border-color: #5FB878; }
+
+.mode-radio-text { display: flex; flex-direction: column; gap: 1px; }
+.mode-radio-text strong { font-size: 13px; }
+.mode-radio-desc { font-size: 11px; color: #999; }
+
+.mode-path-filter {
+    font-size: 12px; color: #888; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 4px;
+}
+.mode-path-link {
+    color: #1E9FFF; text-decoration: none; margin-left: 2px;
+}
+.mode-path-link:hover { text-decoration: underline; }
+
+.mode-save-btn {
+    height: 34px; padding: 0 20px; border: none; border-radius: 6px;
+    background: #5FB878; color: #fff; font-size: 13px; cursor: pointer;
+    transition: background .2s, transform .1s;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.mode-save-btn:hover { background: #4aa86a; }
+.mode-save-btn:active { transform: scale(.97); }
+
+/* ===== 响应式 ===== */
+@media (max-width: 600px) {
+    .mode-card-header { padding: 12px 14px; }
+    .mode-card-body { padding: 12px 14px; }
+    .mode-options { flex-direction: column; gap: 10px; }
+    .mode-save-btn { width: 100%; justify-content: center; }
+}
+</style>

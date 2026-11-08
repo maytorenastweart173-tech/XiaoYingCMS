@@ -1,0 +1,155 @@
+<form id="cloakFormEl" onsubmit="return false;">
+  <input type="hidden" name="id" value="<!-- RULE_ID -->">
+
+  {# ===== 域名配置（多域名支持） ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-globe"></i> 域名绑定</div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">绑定域名</label>
+        <div style="border:1px solid #d2d2d2;border-radius:4px;padding:5px 8px;min-height:36px;background:#fff;" id="domainTagsWrap"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <input type="text" id="domainInput" class="layui-input" placeholder="输入域名后按回车添加" style="flex:1;height:32px;font-size:13px;">
+          <button type="button" id="domainAddBtn" class="layui-btn layui-btn-sm"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="cloak-aux">支持 *.example.com 通配符，多个域名绑定到同一条规则，共用同一套配置。<strong>留空 = 全局默认规则</strong>（只能有一个）</div>
+        <div class="cloak-aux" style="color:#e54d4d;display:none;" id="domainEmptyWarn">至少绑定一个域名，或全部留空作为全局默认</div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== 启用开关 ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-power-off"></i> 开关控制</div>
+    <div class="cloak-form-row">
+      <label class="cloak-switch">
+        <input type="checkbox" name="is_enabled" <!-- CHECKED_IF_ENABLED -->>
+        <span class="cloak-switch-slider"></span>
+      </label>
+      <span class="cloak-aux" style="margin-left:10px;">开启后中间件将对前台请求进行斗篷伪装</span>
+    </div>
+  </div>
+
+  {# ===== 识别规则 ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-search"></i> 识别规则</div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">搜索引擎域名</label>
+        <textarea name="search_engines" class="cloak-textarea" placeholder="每行一个域名片段，用于匹配 Referer"><!-- SEARCH_ENGINES_LIST --></textarea>
+        <div class="cloak-aux">来源 Referer 包含以下任一关键字，即判定为搜索引擎访问。</div>
+      </div>
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">爬虫标识</label>
+        <textarea name="spider_keywords" class="cloak-textarea" placeholder="每行一个 User-Agent 关键字"><!-- SPIDER_KEYWORDS_LIST --></textarea>
+        <div class="cloak-aux">User-Agent 包含以下任一关键字，即判定为爬虫。</div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== 行为策略 ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-route"></i> 行为策略</div>
+    <div class="cloak-form-row cloak-3col">
+      <div class="cloak-form-group">
+        <label class="cloak-label">爬虫 <span class="cloak-tag cloak-tag-spider">BOT</span></label>
+        <select name="spider_action" class="cloak-select">
+          {% for a in action_choices %}
+          <option value="{{ a.value }}">{{ a.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="cloak-form-group">
+        <label class="cloak-label">搜索引擎用户 <span class="cloak-tag cloak-tag-search">REF</span></label>
+        <select name="search_action" class="cloak-select">
+          {% for a in action_choices %}
+          <option value="{{ a.value }}">{{ a.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="cloak-form-group">
+        <label class="cloak-label">直接访问 <span class="cloak-tag cloak-tag-direct">DIR</span></label>
+        <select name="direct_action" class="cloak-select">
+          {% for a in action_choices %}
+          <option value="{{ a.value }}">{{ a.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="cloak-aux" style="margin-top:8px;">
+      <i class="fas fa-info-circle"></i> 决策矩阵：爬虫优先 → 搜索引擎用户 → 直接访问。选择"重定向"时需配置下方的重定向 URL。
+    </div>
+  </div>
+
+  {# ===== 重定向配置 ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-external-link-alt"></i> 重定向配置</div>
+    <div class="cloak-form-row cloak-3col">
+      <div class="cloak-form-group">
+        <label class="cloak-label">HTTP 状态码</label>
+        <select name="redirect_status_code" class="cloak-select">
+          {% for rc in redirect_choices %}
+          <option value="{{ rc.code }}">{{ rc.code }} — {{ rc.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">爬虫重定向 URL</label>
+        <input type="url" name="spider_redirect_url" class="cloak-input" placeholder="https://example.com/seo-page" value="<!-- SPIDER_REDIRECT_URL -->">
+      </div>
+    </div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">搜索引擎用户重定向 URL</label>
+        <input type="url" name="search_redirect_url" class="cloak-input" placeholder="https://example.com/cloak-page" value="<!-- SEARCH_REDIRECT_URL -->">
+      </div>
+    </div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">直接访问重定向 URL</label>
+        <input type="url" name="direct_redirect_url" class="cloak-input" placeholder="https://example.com/other-page" value="<!-- DIRECT_REDIRECT_URL -->">
+      </div>
+    </div>
+  </div>
+
+  {# ===== 白名单 ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-shield-alt"></i> 白名单</div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <textarea name="whitelist_paths" class="cloak-textarea" placeholder="每行一个路径前缀，如&#10;/api/&#10;/static/"><!-- WHITELIST_PATHS_RAW --></textarea>
+        <div class="cloak-aux">不受斗篷伪装影响的路径，前缀匹配</div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== 备注（可选） ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-comment-dots"></i> 备注 <span class="cloak-aux" style="font-weight:normal;color:#999;">（可选）</span></div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <textarea name="remark" class="cloak-textarea" maxlength="1000" placeholder="为这条规则添加备注说明，例如用途、负责人、生效时间等。最多 1000 字符。"><!-- RULE_REMARK --></textarea>
+        <div class="cloak-aux">仅用于管理员标识规则用途，不会参与斗篷伪装的实际判定逻辑。</div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== SEO 内容 & 伪装内容 ===== #}
+  <div class="cloak-section">
+    <div class="cloak-section-title"><i class="fas fa-code"></i> 内容配置</div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">SEO 内容 <span class="cloak-tag cloak-tag-spider">爬虫可见</span></label>
+        <textarea name="seo_content" class="cloak-textarea cloak-textarea-lg" placeholder="展示给爬虫的 HTML 内容，留空则返回原始页面"><!-- SEO_CONTENT --></textarea>
+      </div>
+    </div>
+    <div class="cloak-form-row">
+      <div class="cloak-form-group" style="flex:1;">
+        <label class="cloak-label">伪装内容 <span class="cloak-tag cloak-tag-search">搜索引擎用户可见</span></label>
+        <textarea name="cloak_content" class="cloak-textarea cloak-textarea-lg" placeholder="展示给搜索引擎用户的 HTML 内容，留空则返回原始页面"><!-- CLOAK_CONTENT --></textarea>
+      </div>
+    </div>
+  </div>
+</form>

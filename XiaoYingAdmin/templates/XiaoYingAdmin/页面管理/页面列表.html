@@ -1,0 +1,70 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+
+{% block title %}页面列表{% endblock %}
+{% block body %}
+
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.css.html' %}
+
+<div class="page-list-wrap">
+    {# 工具栏 #}
+    <div class="page-list-toolbar">
+        <div class="page-view-tabs">
+            <button class="tab-btn active" data-view="tree"><i class="fas fa-tree"></i> 树形视图</button>
+        </div>
+        <input type="text" id="searchKeyword" class="layui-input" placeholder="搜索页面名称或需求描述..." style="width:260px;">
+        <button class="layui-btn layui-btn-sm" id="btnSearch"><i class="fas fa-search"></i> 搜索</button>
+        <button class="layui-btn layui-btn-sm layui-btn-primary" id="btnReset"><i class="fas fa-undo"></i> 重置</button>
+        <button class="layui-btn layui-btn-sm layui-btn-warm" id="btnCrosslink"><i class="fas fa-link"></i> 智能互链</button>
+        <button class="layui-btn layui-btn-sm layui-btn-normal" id="btnCreatePage"><i class="fas fa-plus"></i> 新增页面</button>
+        <button class="layui-btn layui-btn-sm" id="btnBatchImport" style="background:#8BC34A;border-color:#8BC34A;"><i class="fas fa-upload"></i> 批量导入</button>
+        <button class="layui-btn layui-btn-sm" id="btnFriendLink" style="background:#FFB800;border-color:#FFB800;"><i class="fas fa-link"></i> 友情链接</button>
+    </div>
+
+    {# 主布局 #}
+    <div class="page-layout">
+        {# 左侧分类栏 #}
+        <div class="page-sidebar" id="sidebarWrap">
+            <div class="sidebar-title">
+                <span class="title-text"><i class="fas fa-folder-open" style="color:#5FB878;"></i> 分类</span>
+            </div>
+            <div class="sidebar-search">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="sidebarCatSearch" placeholder="搜索分类...">
+            </div>
+            <div class="sidebar-list-wrap">
+                <ul class="sidebar-list" id="categoryList">
+                    <li class="active" data-filter="all"><i class="fas fa-th-list"></i> 所有分类 <span class="cat-count" id="countAll">0</span></li>
+                </ul>
+            </div>
+            <div class="sidebar-actions">
+                <button class="layui-btn layui-btn-sm layui-btn-primary add-cat-btn" id="btnManageCat"><i class="fas fa-cog"></i> 管理分类</button>
+            </div>
+        </div>
+
+        {# 右侧内容区 #}
+        <div class="page-content">
+            {# ===== 树形视图 ===== #}
+            <div class="tree-view active" id="treeView">
+                <div id="treeContainer"><div class="loading-mask">加载中...</div></div>
+            </div>
+
+            {# 表格视图已移除，仅保留树形视图 #}
+        </div>
+    </div>
+</div>
+
+{# ===== 子组件（按依赖顺序加载） ===== #}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.共享.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.分类.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.树形视图.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.树形交互.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.分类选择器.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.域名管理.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.弹窗页面.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.智能互链.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.批量导入.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.友情链接.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.初始化.js.html' %}
+{% include 'XiaoYingAdmin/页面管理/子组件/页面列表/页面列表.SEO状态弹窗.js.html' %}
+
+{% endblock %}

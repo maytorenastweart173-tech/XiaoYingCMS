@@ -1,0 +1,331 @@
+<script>
+// ============================================================
+// 页面列表 — 批量导入单页面
+// ============================================================
+
+function openBatchImportModal() {
+    // 构建分类选择器
+    var catSelectorHtml = buildCategorySelector();
+    
+    var html = '<div class="bi-modal" style="padding:15px 20px;">';
+    html += '<div class="layui-form-item">';
+    html += '<label class="layui-form-label">域名列表</label>';
+    html += '<div class="layui-input-block">';
+    html += '<textarea class="bi-domain-textarea" id="biDomainInput" placeholder="每行一个域名，例如：&#10;asdf.sghf-whatsapp.hl.cn&#10;sghf-whatsapp.hl.cn&#10;https://example.com"></textarea>';
+    html += '<div class="bi-hint"><i class="fas fa-info-circle"></i> 每行一个域名，系统自动检测协议，缺失则默认添加 https://</div>';
+    html += '</div></div>';
+    html += '<div class="layui-form-item">';
+    html += '<label class="layui-form-label">压缩包</label>';
+    html += '<div class="layui-input-block">';
+    html += '<div class="bi-upload-area" id="biUploadArea">';
+    html += '<input type="file" id="biFileInput" accept=".zip">';
+    html += '<span class="bi-ua-icon"><i class="fas fa-cloud-upload-alt"></i></span>';
+    html += '<span class="bi-ua-text">点击或拖拽 <strong>zip</strong> 文件到此处</span>';
+    html += '<div class="bi-ua-name"><i class="fas fa-file-archive"></i> <span id="biFileName"></span></div>';
+    html += '</div>';
+    html += '<div class="bi-hint"><i class="fas fa-info-circle"></i> zip 内请包含多个子文件夹，每个子文件夹放一个 .html 文件</div>';
+    html += '</div></div>';
+    html += '<div class="layui-form-item">';
+    html += '<label class="layui-form-label">目标分类</label>';
+    html += '<div class="layui-input-block">' + catSelectorHtml + '</div>';
+    html += '</div>';
+    html += '<div class="layui-form-item" style="margin-bottom:0;">';
+    html += '<div class="layui-input-block" style="margin-left:0;text-align:center;">';
+    html += '<button type="button" class="layui-btn" id="biStartBtn" style="background:#8BC34A;border-color:#8BC34A;padding:0 30px;"><i class="fas fa-rocket"></i> 开始导入</button>';
+    html += '</div></div>';
+    
+    // 进度条
+    html += '<div class="bi-progress-bar" id="biProgressBar"><div class="bi-pb-fill" id="biProgressFill"></div></div>';
+    html += '<div class="bi-progress-text" id="biProgressText">准备中...</div>';
+    
+    // 结果展示区
+    html += '<div class="bi-result" id="biResultWrap"></div>';
+    html += '<div class="bi-summary" id="biSummary"></div>';
+    html += '</div>';
+
+    layer.open({
+        type: 1,
+        title: '<i class="fas fa-upload" style="color:#8BC34A;"></i> 批量导入单页面',
+        area: ['620px', '530px'],
+        shadeClose: true,
+        content: html,
+        success: function(layero) {
+            // 初始化分类选择器
+            initCategorySelector(layero);
+
+            // 文件上传交互
+            var uploadArea = layero.find('#biUploadArea')[0];
+            var fileInput = layero.find('#biFileInput')[0];
+            var fileNameSpan = layero.find('#biFileName')[0];
+            var selectedFile = null;
+
+            // 点击上传区域触发文件选择
+            uploadArea.addEventListener('click', function() { fileInput.click(); });
+
+            // 选择文件后显示文件名
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    selectedFile = this.files[0];
+                    fileNameSpan.textContent = selectedFile.name + ' (' + (selectedFile.size / 1024).toFixed(1) + ' KB)';
+                    uploadArea.classList.add('bi-has-file');
+                    uploadArea.querySelector('.bi-ua-icon').innerHTML = '<i class="fas fa-check-circle" style="color:#8BC34A;"></i>';
+                    uploadArea.querySelector('.bi-ua-text').innerHTML = '<span style="color:#666;">已选择文件，点击或拖拽可更换</span>';
+                    uploadArea.querySelector('.bi-ua-name').style.display = '';
+                }
+            });
+
+            // 拖拽上传
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('bi-dragover');
+            });
+            uploadArea.addEventListener('dragleave', function() {
+                uploadArea.classList.remove('bi-dragover');
+            });
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('bi-dragover');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    var f = e.dataTransfer.files[0];
+                    if (!f.name.toLowerCase().endsWith('.zip')) {
+                        layer.msg('只支持 .zip 文件', {icon:5});
+                        return;
+                    }
+                    fileInput.files = e.dataTransfer.files;
+                    selectedFile = f;
+                    fileNameSpan.textContent = selectedFile.name + ' (' + (selectedFile.size / 1024).toFixed(1) + ' KB)';
+                    uploadArea.classList.add('bi-has-file');
+                    uploadArea.querySelector('.bi-ua-icon').innerHTML = '<i class="fas fa-check-circle" style="color:#8BC34A;"></i>';
+                    uploadArea.querySelector('.bi-ua-text').innerHTML = '<span style="color:#666;">已选择文件，点击或拖拽可更换</span>';
+                    uploadArea.querySelector('.bi-ua-name').style.display = '';
+                }
+            });
+
+            // 点击开始导入
+            layero.find('#biStartBtn').on('click', function() {
+                var btn = this;
+
+                // 收集输入
+                var domainText = layero.find('#biDomainInput').val().trim();
+                var catWrap = layero.find('#catSelectorWrap')[0];
+                var catIds = [];
+                if (catWrap) {
+                    var raw = catWrap.getAttribute('data-selected');
+                    if (raw) {
+                        catIds = raw.split(',').map(function(s) { return parseInt(s, 10); }).filter(function(n) { return !isNaN(n); });
+                    }
+                }
+
+                // 校验
+                if (!domainText) {
+                    layer.msg('请输入域名列表', {icon:5});
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-rocket"></i> 开始导入';
+                    return;
+                }
+                if (!selectedFile) {
+                    layer.msg('请选择要上传的 zip 压缩包', {icon:5});
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-rocket"></i> 开始导入';
+                    return;
+                }
+
+                // 解析域名
+                var domains = domainText.split('\n')
+                    .map(function(s) { return s.trim(); })
+                    .filter(function(s) { return s.length > 0; });
+
+                if (domains.length === 0) {
+                    layer.msg('没有有效的域名', {icon:5});
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-rocket"></i> 开始导入';
+                    return;
+                }
+
+                // —— 提交函数（闭包，可访问上方所有局部变量） ——
+                // mode: ''（首次，可能触发选择对话框）| 'duplicate' | 'ai_generate'
+                function doSubmit(mode) {
+                    btn.disabled = true;
+                    btn.style.background = '';
+                    btn.style.borderColor = '';
+                    btn.innerHTML = mode === 'ai_generate'
+                        ? '<i class="fas fa-spinner fa-spin"></i> AI 生成中（可能需要数分钟）...'
+                        : '<i class="fas fa-spinner fa-spin"></i> 导入中...';
+
+                    // 显示进度
+                    var progressBar = document.getElementById('biProgressBar');
+                    var progressFill = document.getElementById('biProgressFill');
+                    var progressText = document.getElementById('biProgressText');
+                    var resultWrap = document.getElementById('biResultWrap');
+                    var summary = document.getElementById('biSummary');
+                    if (progressBar) progressBar.style.display = '';
+                    if (progressText) {
+                        progressText.style.display = '';
+                        progressText.textContent = mode === 'ai_generate'
+                            ? '正在并行 AI 生成页面，约 1-2 分钟，请耐心等待...'
+                            : '正在上传并处理 ' + domains.length + ' 个页面...';
+                    }
+                    if (progressFill) progressFill.style.width = '20%';
+
+                    // 构建 FormData
+                    var formData = new FormData();
+                    formData.append('domains', domainText);
+                    formData.append('file', selectedFile);
+                    if (catIds.length > 0) {
+                        formData.append('category_ids', catIds.join(','));
+                    }
+                    if (mode) {
+                        formData.append('mode', mode);
+                    }
+
+                    // 发送请求
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/xiaoying_admin/api/pages/saved/batch-import/', true);
+
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable && progressFill) {
+                            var pct = Math.round(20 + (e.loaded / e.total) * 40);
+                            progressFill.style.width = pct + '%';
+                            if (progressText) progressText.textContent = '上传中 ' + Math.round((e.loaded / e.total) * 100) + '%...';
+                        }
+                    };
+
+                    xhr.onload = function() {
+                        var resp;
+                        try { resp = JSON.parse(xhr.responseText); } catch(_) {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-rocket"></i> 开始导入';
+                            if (progressBar) progressBar.style.display = 'none';
+                            if (progressText) progressText.style.display = 'none';
+                            layer.msg('服务器返回数据异常', {icon:2});
+                            return;
+                        }
+
+                        // —— .html 不足，弹出选择对话框 ——
+                        if (resp.need_choice) {
+                            if (progressBar) progressBar.style.display = 'none';
+                            if (progressText) progressText.style.display = 'none';
+                            if (progressFill) progressFill.style.width = '0%';
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-rocket"></i> 开始导入';
+
+                            var shortMsg = '.html 文件不足：需要 ' + resp.domain_count + ' 个，实际 ' + resp.html_count + ' 个';
+                            var contentHtml = '<div style="padding:20px 25px;">';
+                            contentHtml += '<div style="margin-bottom:16px;color:#e65100;font-size:14px;"><i class="fas fa-exclamation-triangle"></i> ' + escHtml(shortMsg) + '</div>';
+                            contentHtml += '<div style="display:flex;flex-direction:column;gap:12px;">';
+                            contentHtml += '<div style="padding:14px 16px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa;">';
+                            contentHtml += '<div style="font-weight:600;color:#5FB878;margin-bottom:4px;"><i class="fas fa-times-circle"></i> 选项 1：放弃导入</div>';
+                            contentHtml += '<div style="color:#999;font-size:12px;">补齐 .html 文件后重新上传</div>';
+                            contentHtml += '</div>';
+                            contentHtml += '<div style="padding:14px 16px;border:1px solid #e0e0e0;border-radius:6px;background:#fff8e1;">';
+                            contentHtml += '<div style="font-weight:600;color:#FF9800;margin-bottom:4px;"><i class="fas fa-copy"></i> 选项 2：允许页面重复</div>';
+                            contentHtml += '<div style="color:#999;font-size:12px;">先分配全部 ' + resp.html_count + ' 个 .html，剩余 ' + (resp.domain_count - resp.html_count) + ' 个域名随机复用已有页面</div>';
+                            contentHtml += '</div>';
+                            contentHtml += '<div style="padding:14px 16px;border:1px solid #e0e0e0;border-radius:6px;background:#e3f2fd;">';
+                            contentHtml += '<div style="font-weight:600;color:#1E9FFF;margin-bottom:4px;"><i class="fas fa-robot"></i> 选项 3：AI 自动生成</div>';
+                            contentHtml += '<div style="color:#999;font-size:12px;">通过 AI 为剩余 ' + (resp.domain_count - resp.html_count) + ' 个域名生成页面（并行生成，约 1-2 分钟）</div>';
+                            contentHtml += '</div>';
+                            contentHtml += '</div></div>';
+
+                            layer.open({
+                                type: 1,
+                                title: '<i class="fas fa-question-circle" style="color:#FF9800;"></i> 请选择处理方式',
+                                area: ['500px', 'auto'],
+                                shadeClose: false,
+                                content: contentHtml,
+                                btn: ['放弃导入', '允许重复', 'AI 生成'],
+                                btn1: function(index) {
+                                    layer.close(index);
+                                    // 放弃，不做事
+                                },
+                                btn2: function(index) {
+                                    layer.close(index);
+                                    doSubmit('duplicate');
+                                },
+                                btn3: function(index) {
+                                    layer.close(index);
+                                    doSubmit('ai_generate');
+                                },
+                            });
+                            return;
+                        }
+
+                        if (progressFill) progressFill.style.width = '100%';
+                        setTimeout(function() {
+                            if (progressBar) progressBar.style.display = 'none';
+                            if (progressText) progressText.style.display = 'none';
+                        }, 500);
+
+                        if (resp.error) {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-rocket"></i> 开始导入';
+                            layer.msg(resp.error, {icon:2});
+                            return;
+                        }
+
+                        // 展示结果
+                        var resultHtml = '';
+                        var created = resp.created || [];
+                        var errors = resp.errors || [];
+
+                        created.forEach(function(item) {
+                            var domainShow = item.domain.replace('https://', '').replace('http://', '');
+                            resultHtml += '<div class="bi-result-item bi-ok">';
+                            resultHtml += '<span class="bi-ri-icon"><i class="fas fa-check-circle"></i></span>';
+                            resultHtml += '<span class="bi-ri-domain">' + escHtml(domainShow) + '</span>';
+                            resultHtml += '<span class="bi-ri-file">← ' + escHtml(item.name) + '</span>';
+                            resultHtml += '<span class="bi-ri-status">' + (item.source === 'AI 生成' ? 'AI生成' : '成功') + '</span>';
+                            resultHtml += '</div>';
+                        });
+                        errors.forEach(function(item) {
+                            var domainShow = item.domain.replace('https://', '').replace('http://', '');
+                            resultHtml += '<div class="bi-result-item bi-err">';
+                            resultHtml += '<span class="bi-ri-icon"><i class="fas fa-times-circle"></i></span>';
+                            resultHtml += '<span class="bi-ri-domain">' + escHtml(domainShow) + '</span>';
+                            resultHtml += '<span class="bi-ri-status">' + escHtml(item.error) + '</span>';
+                            resultHtml += '</div>';
+                        });
+
+                        resultWrap.innerHTML = resultHtml;
+                        resultWrap.style.display = '';
+
+                        // 汇总
+                        var summaryHtml = '<i class="fas fa-check-circle"></i> 成功导入 <strong>' + created.length + '</strong> 个页面';
+                        if (errors.length > 0) {
+                            summaryHtml += '，<span class="bi-summary-err"><i class="fas fa-exclamation-circle"></i> ' + errors.length + ' 个失败</span>';
+                        }
+                        summary.innerHTML = summaryHtml;
+                        summary.style.display = '';
+                        if (errors.length > 0) summary.className = 'bi-summary bi-has-err';
+                        else summary.className = 'bi-summary';
+
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-check"></i> 导入完成';
+                        btn.style.background = '#5FB878';
+                        btn.style.borderColor = '#5FB878';
+
+                        // 刷新页面列表
+                        loadTree();
+                        if (typeof loadTableView === 'function' && typeof currentPageTV !== 'undefined') {
+                            loadTableView(currentPageTV);
+                        }
+                    };
+
+                    xhr.onerror = function() {
+                        if (progressBar) progressBar.style.display = 'none';
+                        if (progressText) progressText.style.display = 'none';
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-rocket"></i> 开始导入';
+                        layer.msg('网络错误，请重试', {icon:2});
+                    };
+
+                    xhr.send(formData);
+                }
+
+                // 首次提交（不带 mode，若 .html 不足后端会返回 need_choice）
+                doSubmit('');
+            });
+        },
+    });
+}
+</script>

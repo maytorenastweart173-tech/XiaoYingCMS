@@ -1,0 +1,128 @@
+<script>
+// ============================================================
+// 页面列表 — 树形交互事件 & 页面操作
+// ============================================================
+// 依赖全局变量: layer, loadTree, openEditor, seoOptimizePage, openPageCategoryEditor, openDomainEditor
+
+function bindTreeEvents() {
+    var container = document.getElementById('treeContainer');
+
+    // 展开/折叠
+    container.querySelectorAll('.tree-node-row[data-target]').forEach(function(row) {
+        row.addEventListener('click', function(e) {
+            // 如果点击的是操作按钮则忽略
+            if (e.target.closest('.page-actions') || e.target.closest('.pa-btn')) return;
+            var children = row.nextElementSibling;
+            if (children && children.classList.contains('tree-children')) {
+                var isOpen = children.classList.contains('expanded');
+                children.classList.toggle('expanded');
+                var arrow = row.querySelector('.tree-arrow');
+                if (arrow) arrow.classList.toggle('expanded');
+            }
+        });
+    });
+
+    // 域名排除互链开关
+    container.querySelectorAll('.domain-crosslink-toggle').forEach(function(icon) {
+        icon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var domain = icon.getAttribute('data-domain');
+            if (domain) toggleDomainCrosslink(domain);
+        });
+    });
+
+    // 页面操作按钮
+    container.querySelectorAll('.pa-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var action = btn.getAttribute('data-action') || '';
+            var id = parseInt(btn.getAttribute('data-id'));
+
+            if (action === 'domain') {
+                var domainsStr = btn.getAttribute('data-domains') || '[]';
+                var domains;
+                try { domains = JSON.parse(domainsStr); } catch(e) { domains = []; }
+                openDomainEditor(id, domains);
+            } else if (action === 'open') {
+                openPage(btn);
+            } else if (action === 'delete') {
+                deletePage(id);
+            }
+
+            // btn-edit-page (分类按钮在下方单独处理)
+            if (btn.classList.contains('btn-edit-page')) {
+                openEditor(id);
+            }
+            if (btn.classList.contains('btn-seo-page')) {
+                seoOptimizePage(id);
+            }
+            if (btn.classList.contains('btn-cat-page')) {
+                openPageCategoryEditor(id);
+            }
+        });
+    });
+}
+
+// 打开页面
+function openPage(btn) {
+    var domainsStr = btn.getAttribute('data-domains') || '[]';
+    var domains;
+    try { domains = JSON.parse(domainsStr); } catch(e) { domains = []; }
+    if (domains.length === 0) { layer.msg('该页面未绑定域名，无法打开', {icon:0}); return; }
+    var raw = domains[0];
+    var root = raw.replace(/^\*\.|^www\./i, '');
+    if (root.indexOf('127.0.0.1') === 0) {
+        // 本地地址保持原样
+    } else if (root.indexOf(':') > 0) {
+        root = root.split(':')[0];
+    }
+    var url = (root.indexOf('://') > 0) ? root : 'https://' + root + '/';
+    window.open(url, '_blank');
+}
+
+// 删除根域名下的所有页面
+function deleteRootDomain(root, count) {
+    layer.confirm(
+        '<div style="text-align:center;padding:10px 0;">' +
+        '<i class="fas fa-exclamation-triangle" style="font-size:42px;color:#ff4d4f;margin-bottom:10px;"></i>' +
+        '<p style="font-size:15px;font-weight:600;margin-bottom:8px;">确定要删除根域名下的全部页面吗？</p>' +
+        '<p style="font-size:13px;color:#555;">根域名: <strong>' + escHtml(root) + '</strong></p>' +
+        '<p style="font-size:13px;color:#999;">将删除 <strong style="color:#ff4d4f;">' + count + '</strong> 个页面，此操作不可恢复！</p>' +
+        '</div>',
+        {icon:3, title:'确认批量删除', btn:['确认删除','取消']},
+        function(idx) {
+            layer.close(idx);
+            var loadIdx = layer.load(1);
+            fetch('/xiaoying_admin/api/pages/saved/delete-by-root/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({root: root}),
+            }).then(function(r){return r.json()}).then(function(resp){
+                layer.close(loadIdx);
+                if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+                layer.msg(resp.message||'删除成功', {icon:1});
+                loadTree();
+            }).catch(function(){
+                layer.close(loadIdx);
+                layer.msg('删除失败', {icon:2});
+            });
+        }
+    );
+}
+
+// 删除页面
+function deletePage(id) {
+    layer.confirm('确定删除此页面吗？', { icon: 3, btn: ['确定', '取消'], title: '确认删除' }, function(index) {
+        fetch('/xiaoying_admin/api/pages/saved/delete/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id }),
+        }).then(function(r) { return r.json(); }).then(function(resp) {
+            if (resp.error) { layer.msg(resp.error, {icon:2}); return; }
+            layer.close(index);
+            layer.msg('已删除', {icon:1});
+            loadTree();
+        }).catch(function() { layer.msg('删除失败', {icon:2}); });
+    });
+}
+</script>

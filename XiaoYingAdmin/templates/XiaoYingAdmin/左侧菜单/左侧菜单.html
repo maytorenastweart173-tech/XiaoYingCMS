@@ -1,0 +1,31 @@
+{# 侧边栏容器 — LayUI 垂直导航结构 #}
+<div class="sidebar-menu">
+    <div class="sidebar-header"><h3>{{ site_name }}</h3></div>
+    <ul class="layui-nav layui-nav-tree" id="sidebar-menu" lay-filter="sidebar-menu" lay-accordion>
+        {% include 'XiaoYingAdmin/左侧菜单/左侧菜单_项.html' with menu_items=sidebar_menu_data is_child=False %}
+    </ul>
+</div>
+
+{# 自定义细滚动条 — 用 JS 设置以兼容所有浏览器 #}
+<style id="scrollbar-style">
+/* 标准属性兜底（Chrome 121+ / Firefox） */
+.sidebar-menu .layui-nav-tree {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent !important;
+}
+</style>
+<script>
+(function() {
+    var el = document.querySelector('.sidebar-menu .layui-nav-tree');
+    if (!el) return;
+    // 直接通过 JS 设置样式，绕过 CSS 解析器对 ::-webkit-scrollbar 的限制
+    var style = document.createElement('style');
+    style.textContent = [
+        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar { width: 4px !important; }',
+        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar-track { background: transparent !important; }',
+        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15) !important; border-radius: 2px !important; }',
+        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3) !important; }',
+    ].join('\n');
+    document.head.appendChild(style);
+})();
+</script>
