@@ -81,7 +81,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/<your-account>/XiaoYingCMS.git
+git clone https://github.com/maytorenastweart173-tech/XiaoYingCMS.git
 cd XiaoYingCMS
 
 # 2. 创建并激活虚拟环境
@@ -172,7 +172,7 @@ python manage.py runserver 8003
 
 ```bash
 cd /www/wwwroot
-git clone https://github.com/<your-account>/XiaoYingCMS.git
+git clone https://github.com/maytorenastweart173-tech/XiaoYingCMS.git
 cd XiaoYingCMS
 
 python3 -m venv .venv
