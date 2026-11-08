@@ -59,6 +59,7 @@ from XiaoYingAdmin.views.spider.ignore_paths import (
 from XiaoYingAdmin.views.spider.analytics import spider_analytics_view
 from XiaoYingAdmin.views import page_tree as page_tree_views
 from XiaoYingAdmin.views.batch_import import api_batch_import_pages
+from XiaoYingAdmin.views.reference_analyzer import api_reference_analyze
 from XiaoYingAdmin.views.friend_link import (
     friend_link_list, friend_link_create, friend_link_delete,
 )
@@ -201,6 +202,9 @@ urlpatterns = [
     path('api/site-settings/search-engines/save/', admin_request.api_site_settings_save_search_engines, name='api_search_engines_save'),
     path('api/pages/domain-seo/get/', api_page_domain_seo_get, name='api_page_domain_seo_get'),
     path('api/pages/domain-seo/save/', api_page_domain_seo_save, name='api_page_domain_seo_save'),
+
+    # 参考网址分析 → 生成页面需求描述
+    path('api/pages/reference-analyze/', api_reference_analyze, name='api_reference_analyze'),
 
     # 蜘蛛访问日志
     path('spider/logs/', spider_logs_view, name='spider_logs'),

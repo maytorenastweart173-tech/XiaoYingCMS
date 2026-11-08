@@ -4,6 +4,9 @@
         <h3><i class="fas fa-magic"></i> AI 页面生成</h3>
         <span class="gen-desc">输入需求描述，AI 将自动生成完整 HTML 页面</span>
         <div class="gen-header-actions">
+            <button id="genRefBtn" type="button" class="layui-btn layui-btn-xs layui-btn-normal">
+                <i class="fas fa-link"></i> 参考网址生成描述
+            </button>
             <button id="genFlowBtn" type="button" class="layui-btn layui-btn-xs layui-btn-primary">
                 <i class="fas fa-project-diagram"></i> 查看生成流程
             </button>
@@ -138,6 +141,58 @@
         </div>
     </div>
 
+    {# ===== 参考网址分析弹窗 ===== #}
+    <div class="ref-overlay" id="refOverlay">
+        <div class="ref-modal">
+            <div class="ref-modal-header">
+                <span class="ref-modal-title"><i class="fas fa-link"></i> 参考网址生成需求描述</span>
+                <button type="button" class="flow-close-btn" id="refCloseBtn">&times;</button>
+            </div>
+            <div class="ref-modal-body">
+                <p class="ref-tip">
+                    <i class="fas fa-info-circle"></i>
+                    填写 1-5 个参考网站地址（每行一个），系统会派多个 AI 分析它们的 SEO、页面结构、组件与视觉风格，并汇总成一段可直接使用的需求描述。
+                    只读取你填写的这一个页面，不会抓取站内其他页面。
+                </p>
+
+                <div id="refInputWrap">
+                    <textarea id="refUrlInput" class="layui-textarea" rows="4"
+                              placeholder="每行一个网址，例如：&#10;https://example.com/&#10;https://example2.com/"></textarea>
+                    <div class="ref-actions">
+                        <button type="button" class="layui-btn layui-btn-sm layui-btn-normal" id="refAnalyzeBtn">
+                            <i class="fas fa-robot"></i> 开始分析
+                        </button>
+                        <span class="ref-hint" id="refHint">最多 5 个，分析约需 30-90 秒</span>
+                    </div>
+                </div>
+
+                <div id="refProgress" class="ref-progress" style="display:none;">
+                    <i class="fas fa-spinner fa-pulse"></i>
+                    <span id="refProgressText">正在抓取参考页面…</span>
+                </div>
+
+                <div id="refResultWrap" style="display:none;">
+                    <div class="ref-result-head">
+                        <span><i class="fas fa-check-circle" style="color:#5FB878;"></i> 描述词已生成</span>
+                        <div>
+                            <button type="button" class="layui-btn layui-btn-xs layui-btn-primary" id="refCopyBtn">
+                                <i class="fas fa-copy"></i> 复制
+                            </button>
+                            <button type="button" class="layui-btn layui-btn-xs" id="refFillBtn">
+                                <i class="fas fa-arrow-up"></i> 填入需求描述
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="refResult" class="layui-textarea ref-result-text" rows="12" readonly></textarea>
+                    <div id="refFriendNote" class="ref-friend-note" style="display:none;"></div>
+                    <div id="refSiteStatus" class="ref-site-status"></div>
+                </div>
+
+                <div id="refError" class="ref-error" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
     {# ===== 右侧配置抽屉（逐条模式用） ===== #}
     <div class="config-drawer-overlay" id="configDrawerOverlay">
         <div class="config-drawer" id="configDrawer">
@@ -250,6 +305,29 @@
     .flow-modal-title i { color:#1E9FFF; margin-right:6px; }
     .flow-close-btn { cursor:pointer; font-size:24px; color:#999; background:none; border:none; line-height:1; padding:0 4px; }
     .flow-close-btn:hover { color:#333; }
+
+    /* ===== 参考网址分析弹窗 ===== */
+    .ref-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:9999; display:none; align-items:center; justify-content:center; }
+    .ref-overlay.open { display:flex; }
+    .ref-modal { background:#fff; border-radius:8px; width:760px; max-width:94vw; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 8px 30px rgba(0,0,0,.18); animation:flowIn .25s ease; }
+    .ref-modal-header { padding:18px 24px; border-bottom:1px solid #e9ecef; display:flex; justify-content:space-between; align-items:center; }
+    .ref-modal-title { font-size:16px; font-weight:600; color:#393D49; }
+    .ref-modal-title i { color:#1E9FFF; margin-right:6px; }
+    .ref-modal-body { padding:18px 24px 22px; overflow-y:auto; }
+    .ref-tip { font-size:12px; color:#888; line-height:1.7; background:#f7f9fc; border-left:3px solid #1E9FFF; padding:10px 12px; border-radius:4px; margin-bottom:14px; }
+    .ref-tip i { color:#1E9FFF; margin-right:4px; }
+    .ref-actions { display:flex; align-items:center; gap:12px; margin-top:12px; }
+    .ref-hint { font-size:12px; color:#999; }
+    .ref-progress { display:flex; align-items:center; gap:8px; padding:14px 16px; background:#f7f9fc; border-radius:4px; font-size:13px; color:#555; margin-top:14px; }
+    .ref-progress i { color:#1E9FFF; }
+    .ref-result-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:13px; font-weight:600; color:#393D49; }
+    .ref-result-text { font-size:13px; line-height:1.8; color:#333; background:#fbfcfe; }
+    .ref-friend-note { margin-top:12px; padding:10px 12px; background:#fffbe6; border:1px solid #ffe58f; border-radius:4px; font-size:12px; color:#8c6d1f; line-height:1.7; }
+    .ref-site-status { margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+    .ref-site-row { font-size:12px; padding:6px 10px; border-radius:4px; display:flex; align-items:center; gap:6px; }
+    .ref-site-row.ok { background:#f0f9eb; color:#3f7a2b; }
+    .ref-site-row.fail { background:#fef0f0; color:#b94a48; }
+    .ref-error { margin-top:14px; padding:10px 12px; background:#fef0f0; border:1px solid #fbc4c4; border-radius:4px; font-size:13px; color:#b94a48; line-height:1.7; }
     .flow-modal-body { flex:1; overflow-y:auto; padding:28px 30px; }
     .flow-step { display:flex; gap:16px; position:relative; padding-bottom:28px; }
     .flow-step:last-child { padding-bottom:0; }
@@ -779,6 +857,109 @@
     $id('genFlowBtn').addEventListener('click', function() { renderFlowSteps(); document.getElementById('flowOverlay').classList.add('open'); });
     $id('flowCloseBtn').addEventListener('click', function() { document.getElementById('flowOverlay').classList.remove('open'); });
     $id('flowOverlay').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+
+    // ============================
+    // 参考网址 → 生成需求描述
+    // ============================
+    var refOverlay    = $id('refOverlay');
+    var refProgress   = $id('refProgress');
+    var refResultWrap = $id('refResultWrap');
+    var refResultEl   = $id('refResult');
+    var refErrorEl    = $id('refError');
+
+    function toast(msg, icon) {
+        if (window.layer && layer.msg) { layer.msg(msg, { icon: icon || 1 }); }
+    }
+
+    function openRefModal() { refOverlay.classList.add('open'); }
+    function closeRefModal() { refOverlay.classList.remove('open'); }
+
+    $id('genRefBtn').addEventListener('click', openRefModal);
+    $id('refCloseBtn').addEventListener('click', closeRefModal);
+    refOverlay.addEventListener('click', function(e) { if (e.target === this) closeRefModal(); });
+
+    function showRefError(msg) {
+        refErrorEl.textContent = msg;
+        refErrorEl.style.display = 'block';
+    }
+
+    function renderRefSites(sites) {
+        var box = $id('refSiteStatus');
+        box.innerHTML = '';
+        (sites || []).forEach(function(s) {
+            var row = document.createElement('div');
+            row.className = 'ref-site-row ' + (s.ok ? 'ok' : 'fail');
+            var icon = s.ok ? 'fa-check-circle' : 'fa-exclamation-circle';
+            var text = s.ok
+                ? s.host + (s.page_type ? '（' + s.page_type + '）' : '') + ' 分析完成'
+                : s.host + '：' + (s.reason || '无法解析');
+            row.innerHTML = '<i class="fas ' + icon + '"></i><span></span>';
+            row.querySelector('span').textContent = text;
+            box.appendChild(row);
+        });
+    }
+
+    $id('refAnalyzeBtn').addEventListener('click', function() {
+        var btn = this;
+        var raw = ($id('refUrlInput').value || '').trim();
+        var urls = raw.split(/[\s,;，；]+/).filter(function(s) { return !!s.trim(); });
+        urls = urls.filter(function(v, i, arr) { return arr.indexOf(v) === i; });
+
+        if (!urls.length) { toast('请至少填写一个参考网址', 2); return; }
+        if (urls.length > 5) { toast('最多支持 5 个参考网址', 2); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> 分析中…';
+        refProgress.style.display = 'flex';
+        refResultWrap.style.display = 'none';
+        refErrorEl.style.display = 'none';
+        $id('refHint').textContent = '正在抓取并分析 ' + urls.length + ' 个站点，请稍候…';
+
+        fetch('/xiaoying_admin/api/pages/reference-analyze/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls: urls }),
+        }).then(function(r) {
+            return r.json().then(function(d) { return d; });
+        }).then(function(resp) {
+            if (!resp || resp.error) {
+                showRefError((resp && resp.error) || '分析失败，请稍后重试');
+                return;
+            }
+            refResultEl.value = resp.description || '';
+
+            var noteEl = $id('refFriendNote');
+            if (resp.friend_link_note) {
+                noteEl.textContent = resp.friend_link_note;
+                noteEl.style.display = 'block';
+            } else {
+                noteEl.style.display = 'none';
+            }
+
+            renderRefSites(resp.sites);
+            refResultWrap.style.display = 'block';
+        }).catch(function(err) {
+            showRefError('请求失败：' + err.message);
+        }).finally(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-robot"></i> 开始分析';
+            refProgress.style.display = 'none';
+            $id('refHint').textContent = '最多 5 个，分析约需 30-90 秒';
+        });
+    });
+
+    $id('refCopyBtn').addEventListener('click', function() {
+        copyClip(refResultEl.value, '描述词已复制');
+    });
+
+    $id('refFillBtn').addEventListener('click', function() {
+        var text = (refResultEl.value || '').trim();
+        if (!text) { toast('暂无可填入的描述', 2); return; }
+        inputEl.value = text;
+        inputEl.focus();
+        closeRefModal();
+        toast('已填入需求描述');
+    });
 
     // ============================
     // 启动
