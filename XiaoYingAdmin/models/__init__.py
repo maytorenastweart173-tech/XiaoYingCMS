@@ -19,6 +19,7 @@ from XiaoYingAdmin.models.seo_domain import SeoDomain
 from XiaoYingAdmin.models.page_domain_seo import PageDomainSeo
 from XiaoYingAdmin.models.domain_seo_record import DomainSeoRecord
 from XiaoYingAdmin.models.friend_link import FriendLink
+from XiaoYingAdmin.models.domain_brand import DomainBrand
 
 __all__ = [
     'BaseModel',
@@ -43,4 +44,5 @@ __all__ = [
     'SeoDomain',
     'PageDomainSeo',
     'FriendLink',
+    'DomainBrand',
 ]

@@ -30,7 +30,7 @@ class MultiPage(BaseModel):
         return f'[{self.project.name}] {self.name}'
 
     def save(self, *args, **kwargs):
-        """自动计算 full_url。"""
+        """自动计算 full_url，并在生成时写入域名品牌（Logo / 图标）。"""
         if self.url_path and self.project_id and hasattr(self, 'project'):
             try:
                 if self.project.root_domain:
@@ -41,6 +41,21 @@ class MultiPage(BaseModel):
                     self.full_url = f'https://{domain}{path}'
             except Exception:
                 pass
+
+        if self.html_content:
+            try:
+                from XiaoYingAdmin.utils.domain_brand import apply_brand_to_html
+
+                domain = ''
+                try:
+                    domain = self.project.root_domain or ''
+                except Exception:  # noqa: BLE001
+                    domain = ''
+                if domain:
+                    self.html_content = apply_brand_to_html(self.html_content, domain)
+            except Exception:  # noqa: BLE001 — 品牌注入失败不能影响页面保存
+                pass
+
         super().save(*args, **kwargs)
 
     def to_dict(self):

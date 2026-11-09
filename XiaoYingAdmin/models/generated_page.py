@@ -78,6 +78,28 @@ class GeneratedPage(BaseModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        """保存时把域名品牌（Logo / 图标）写入 HTML。
+
+        服务端渲染时 DomainBindMiddleware 还会再注入一次，用于让品牌配置
+        修改后对已生成的页面立即生效；这里的写入保证导出/静态备份也带图标。
+        """
+        if self.html_content:
+            try:
+                from XiaoYingAdmin.utils.domain_brand import apply_brand_to_html
+
+                domain = ''
+                domains = self.domains or []
+                if domains:
+                    domain = domains[0]
+                elif self.domain:
+                    domain = self.domain
+                if domain:
+                    self.html_content = apply_brand_to_html(self.html_content, domain)
+            except Exception:  # noqa: BLE001 — 品牌注入失败不能影响页面保存
+                pass
+        super().save(*args, **kwargs)
+
     def to_dict(self, *, with_html: bool = False) -> dict:
         """
         序列化为前端所需的字典。

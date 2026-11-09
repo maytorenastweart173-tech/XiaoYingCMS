@@ -4,3 +4,4 @@ django-cors-headers # 跨域请求头,用来允许各种前端访问后端API
 requests # HTTP 库,用来发送 HTTP 请求
 python-dotenv # 用来加载环境变量
 loguru # 日志库,XiaoYingAdmin/middleware/layout.py 中间件依赖
+Pillow # 图片处理,域名品牌自动生成 favicon/图标各尺寸

@@ -82,6 +82,12 @@
             "icon": "",
             "url": "/xiaoying_admin/pages/list/",
             "children": []
+          },
+          {
+            "name": "域名品牌",
+            "icon": "",
+            "url": "/xiaoying_admin/pages/domain-brands/",
+            "children": []
           }
         ]
       }

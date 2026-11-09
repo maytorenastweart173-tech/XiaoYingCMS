@@ -18,7 +18,7 @@
 
 import re
 
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from XiaoYingAdmin.models.generated_page import GeneratedPage
 
 
@@ -184,11 +184,30 @@ class DomainBindMiddleware:
         if request.path.startswith('/static/'):
             return self.get_response(request)
 
+        # 上传文件路径 → 跳过，交给项目路由处理
+        if request.path.startswith('/media/'):
+            return self.get_response(request)
+
         # 从请求头提取 Host
         raw_host = request.META.get('HTTP_HOST', '')
         host = raw_host.split(':')[0].strip().lower()
         if not host:
             return self.get_response(request)
+
+        # ---- 0. 域名品牌资源（favicon / logo / og 图）----
+        # 走站点自身的稳定路径，便于浏览器与搜索引擎直接抓取
+        if request.method in ('GET', 'HEAD'):
+            from XiaoYingAdmin.models.domain_brand import DomainBrand
+
+            if request.path in DomainBrand.ASSET_PATHS:
+                brand = DomainBrand.resolve(host)
+                if brand:
+                    from XiaoYingAdmin.utils.domain_brand import brand_asset_response
+
+                    try:
+                        return brand_asset_response(brand, request.path)
+                    except Http404:
+                        pass
 
         # ---- 1. 尝试多页面 ----
         project = self._find_multi_page_project(host)
@@ -198,8 +217,11 @@ class DomainBindMiddleware:
         if project:
             page = self._find_multi_page_by_path(project, request.path)
             if page:
+                from XiaoYingAdmin.utils.domain_brand import apply_brand_to_html
+
+                html = apply_brand_to_html(_sanitize_html(page.html_content), host)
                 return HttpResponse(
-                    _sanitize_html(page.html_content),
+                    html,
                     content_type='text/html; charset=utf-8',
                 )
             return HttpResponse(
@@ -213,8 +235,10 @@ class DomainBindMiddleware:
             page = self._find_single_page(raw_host.strip().lower())
 
         if page:
+            from XiaoYingAdmin.utils.domain_brand import apply_brand_to_html
+
             return HttpResponse(
-                page.html_content,
+                apply_brand_to_html(page.html_content, host),
                 content_type='text/html; charset=utf-8',
             )
 

@@ -58,6 +58,7 @@ from XiaoYingAdmin.views.spider.ignore_paths import (
 )
 from XiaoYingAdmin.views.spider.analytics import spider_analytics_view
 from XiaoYingAdmin.views import page_tree as page_tree_views
+from XiaoYingAdmin.views import domain_brand as domain_brand_views
 from XiaoYingAdmin.views.batch_import import api_batch_import_pages
 from XiaoYingAdmin.views.reference_analyzer import api_reference_analyze
 from XiaoYingAdmin.views.friend_link import (
@@ -122,6 +123,14 @@ urlpatterns = [
     path('index/', admin_request.index_view, name='index'),
     path('site_settings/', admin_request.site_settings_view, name='site_settings'),
     path('pages/generate/', admin_request.page_generate_view, name='page_generate'),
+    path('pages/domain-brands/', domain_brand_views.page_domain_brands, name='page_domain_brands'),
+
+    # 域名品牌（Logo / 图标）
+    path('api/domain-brands/', domain_brand_views.api_domain_brand_list, name='api_domain_brands_list'),
+    path('api/domain-brands/save/', domain_brand_views.api_domain_brand_save, name='api_domain_brands_save'),
+    path('api/domain-brands/upload/', domain_brand_views.api_domain_brand_upload, name='api_domain_brands_upload'),
+    path('api/domain-brands/regenerate/', domain_brand_views.api_domain_brand_regenerate, name='api_domain_brands_regenerate'),
+    path('api/domain-brands/delete/', domain_brand_views.api_domain_brand_delete, name='api_domain_brands_delete'),
     path('pages/list/', admin_request.page_list_view, name='page_list'),
 
     # AJAX API: 页面生成

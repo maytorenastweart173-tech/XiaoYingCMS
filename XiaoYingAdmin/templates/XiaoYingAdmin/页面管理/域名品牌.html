@@ -1,0 +1,386 @@
+{% extends 'XiaoYingAdmin/template.html' %}
+
+{% block title %}域名品牌{% endblock %}
+
+{% block body %}
+<style>
+.db-wrap{padding:16px 18px 40px}
+.db-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.db-head h2{font-size:18px;color:#2f3542;margin:0}
+.db-head h2 i{color:#1E9FFF;margin-right:6px}
+.db-desc{font-size:12px;color:#8a8f99;line-height:1.8;background:#f7f9fc;border-left:3px solid #1E9FFF;padding:10px 12px;border-radius:4px;margin-bottom:14px}
+.db-table{width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.db-table th{background:#fafbfc;color:#5c6470;font-size:13px;font-weight:600;text-align:left;padding:12px 14px;border-bottom:1px solid #eef1f5;white-space:nowrap}
+.db-table td{padding:12px 14px;border-bottom:1px solid #f2f4f7;font-size:13px;color:#3d4450;vertical-align:middle}
+.db-domain{font-weight:600;color:#2f3542}
+.db-sub{font-size:11px;color:#9aa1ac;margin-top:3px}
+.db-thumb{width:36px;height:36px;object-fit:contain;border:1px solid #eef1f5;border-radius:5px;background:#fff}
+.db-thumb-empty{width:36px;height:36px;border:1px dashed #dfe4ea;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#c3c9d2;font-size:11px}
+.db-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px}
+.db-badge.on{background:#e8f7ee;color:#2f9e44}
+.db-badge.off{background:#f2f3f5;color:#9099a5}
+.db-actions .layui-btn{margin-right:4px}
+.db-empty{text-align:center;color:#9aa1ac;padding:50px 0;font-size:13px}
+.db-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:none}
+.db-modal-mask.open{display:block}
+.db-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:660px;max-width:94vw;max-height:88vh;overflow:auto;background:#fff;border-radius:8px;z-index:10000;display:none;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.db-modal.open{display:block}
+.db-modal-head{padding:16px 22px;border-bottom:1px solid #eef1f5;display:flex;justify-content:space-between;align-items:center}
+.db-modal-head span{font-size:16px;font-weight:600;color:#2f3542}
+.db-close{border:none;background:none;font-size:24px;line-height:1;color:#9aa1ac;cursor:pointer}
+.db-modal-body{padding:18px 22px 22px}
+.db-field{margin-bottom:14px}
+.db-field label{display:block;font-size:13px;color:#5c6470;margin-bottom:6px}
+.db-field .tip{font-size:11px;color:#9aa1ac;margin-top:4px;line-height:1.6}
+.db-switch-row{display:flex;gap:22px;flex-wrap:wrap}
+.db-switch-row label{display:flex;align-items:center;gap:6px;font-size:13px;color:#5c6470;margin:0}
+.db-upload-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px}
+.db-upload-item{border:1px solid #eef1f5;border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:10px;background:#fcfdfe}
+.db-upload-item .name{font-size:12px;color:#5c6470;flex:1}
+.db-upload-item .name em{display:block;font-style:normal;font-size:11px;color:#a3a9b3;margin-top:2px}
+.db-upload-item .layui-btn{margin:0}
+.db-preview{display:flex;gap:14px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.db-preview img{max-height:48px;border:1px solid #eef1f5;border-radius:4px;background:#fff}
+.db-preview .ico{width:32px;height:32px}
+.db-hint{background:#fffbe6;border:1px solid #ffe58f;color:#8c6d1f;font-size:12px;line-height:1.7;padding:8px 10px;border-radius:4px;margin-bottom:14px}
+.db-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.db-adv{margin-top:6px}
+.db-adv summary{cursor:pointer;font-size:12px;color:#1E9FFF}
+@media(max-width:700px){.db-upload-grid{grid-template-columns:1fr}}
+</style>
+
+<div class="db-wrap">
+    <div class="db-head">
+        <h2><i class="fas fa-globe"></i> 域名品牌（Logo / 站点图标）</h2>
+        <div>
+            <button class="layui-btn layui-btn-sm" id="dbRefresh"><i class="fas fa-sync"></i> 刷新</button>
+            <button class="layui-btn layui-btn-sm layui-btn-normal" id="dbAdd"><i class="fas fa-plus"></i> 新增域名</button>
+        </div>
+    </div>
+
+    <div class="db-desc">
+        给一个域名配置 Logo 与图标后，该域名下<strong>所有页面（含多级子域名）</strong>都会自动使用。<br>
+        规则：根域名（如 example.com）的配置会被 m.example.com、a.b.example.com 自动继承；如需单独样式，可为子域名再建一条记录。<br>
+        图标会同时输出到 <code>/favicon.ico</code>、<code>/apple-touch-icon.png</code> 与 og:image 标签，搜索引擎可直接抓取。
+        不会影响其他域名，也不影响后台系统自身图标。
+    </div>
+
+    <table class="db-table">
+        <thead>
+            <tr>
+                <th style="width:26%;">域名</th>
+                <th style="width:14%;">品牌名</th>
+                <th style="width:10%;">Logo</th>
+                <th style="width:10%;">图标</th>
+                <th style="width:12%;">状态</th>
+                <th style="width:14%;">更新时间</th>
+                <th style="width:14%;">操作</th>
+            </tr>
+        </thead>
+        <tbody id="dbTableBody">
+            <tr><td colspan="7" class="db-empty">加载中…</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="db-modal-mask" id="dbMask"></div>
+<div class="db-modal" id="dbModal">
+    <div class="db-modal-head">
+        <span id="dbModalTitle">新增域名品牌</span>
+        <button class="db-close" id="dbClose">&times;</button>
+    </div>
+    <div class="db-modal-body">
+        <div class="db-field">
+            <label>域名 <span style="color:#e74c3c;">*</span></label>
+            <input type="text" id="dbDomain" class="layui-input" placeholder="example.com 或 m.example.com">
+            <div class="tip">填根域名时，所有子域名自动继承；填子域名时只影响该子域名及其下一级。</div>
+        </div>
+        <div class="db-field">
+            <label>品牌名称</label>
+            <input type="text" id="dbBrandName" class="layui-input" placeholder="用于 og:site_name 与结构化数据，可留空">
+        </div>
+        <div class="db-field">
+            <label>生效开关</label>
+            <div class="db-switch-row">
+                <label><input type="checkbox" id="dbEnabled" checked> 启用</label>
+                <label><input type="checkbox" id="dbReplaceLogo" checked> 替换页面内 Logo</label>
+                <label><input type="checkbox" id="dbSeoEnabled" checked> 输出 SEO 图片标签</label>
+            </div>
+        </div>
+        <details class="db-adv">
+            <summary>高级：指定页面内 Logo 元素</summary>
+            <div class="db-field" style="margin-top:8px;">
+                <input type="text" id="dbLogoSelector" class="layui-input" placeholder="如 #logo 或 .site-logo，留空自动识别">
+                <div class="tip">页面 Logo 是文字或特殊结构时可填这里；支持 #id 与 .class 两种写法。</div>
+            </div>
+        </details>
+
+        <div id="dbAssetsWrap" style="display:none;margin-top:16px;">
+            <div class="db-hint" id="dbAssetsHint">先保存基础配置，再上传图片。</div>
+
+            <div class="db-field">
+                <label>原图（自动生成全部尺寸）</label>
+                <div class="db-upload-item">
+                    <div class="name">建议 512×512 以上的方形 PNG / JPG<em>上传后自动生成 ico、32、180、192、512 与分享图</em></div>
+                    <label class="layui-btn layui-btn-xs layui-btn-normal" style="margin:0;">
+                        选择文件<input type="file" id="dbFileSource" accept="image/*" style="display:none;">
+                    </label>
+                </div>
+            </div>
+
+            <div class="db-field">
+                <label>单独上传 / 覆盖</label>
+                <div class="db-upload-grid" id="dbUploadGrid"></div>
+            </div>
+
+            <div class="db-preview" id="dbPreview"></div>
+
+            <div class="db-footer">
+                <button class="layui-btn layui-btn-sm layui-btn-primary" id="dbRegenerate"><i class="fas fa-magic"></i> 按原图重新生成</button>
+            </div>
+        </div>
+
+        <div class="db-footer">
+            <button class="layui-btn layui-btn-sm layui-btn-primary" id="dbCancel">取消</button>
+            <button class="layui-btn layui-btn-sm" id="dbSave">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var API = {
+        list: '/xiaoying_admin/api/domain-brands/',
+        save: '/xiaoying_admin/api/domain-brands/save/',
+        upload: '/xiaoying_admin/api/domain-brands/upload/',
+        regenerate: '/xiaoying_admin/api/domain-brands/regenerate/',
+        del: '/xiaoying_admin/api/domain-brands/delete/'
+    };
+
+    var UPLOAD_META = [
+        { kind: 'logo', label: '页面 Logo', tip: '显示在页面头部的品牌图' },
+        { kind: 'favicon', label: 'favicon.ico', tip: '浏览器标签图标' },
+        { kind: 'icon_32', label: '32×32', tip: 'favicon 高清版' },
+        { kind: 'icon_180', label: '180×180', tip: 'iOS 添加到桌面' },
+        { kind: 'icon_192', label: '192×192', tip: 'Android 图标' },
+        { kind: 'icon_512', label: '512×512', tip: '结构化数据 logo' },
+        { kind: 'og_image', label: '分享图 1200×630', tip: '社交平台预览图' }
+    ];
+
+    var brands = [];
+    var current = null;
+
+    function $(id) { return document.getElementById(id); }
+
+    function toast(msg, icon) {
+        if (window.layer && layer.msg) { layer.msg(msg, { icon: icon || 1 }); }
+    }
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function request(url, options) {
+        return fetch(url, options || {}).then(function (r) { return r.json(); });
+    }
+
+    function postJson(url, data) {
+        return request(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data || {})
+        });
+    }
+
+    function thumb(url, cls) {
+        if (!url) { return '<div class="db-thumb-empty">无</div>'; }
+        return '<img class="' + (cls || 'db-thumb') + '" src="' + esc(url) + '" alt="">';
+    }
+
+    function render() {
+        var body = $('dbTableBody');
+        if (!brands.length) {
+            body.innerHTML = '<tr><td colspan="7" class="db-empty">还没有配置，点击右上角「新增域名」开始</td></tr>';
+            return;
+        }
+        body.innerHTML = brands.map(function (b) {
+            var preview = b.preview || {};
+            var icon = preview.icon_192 || preview.icon_32 || preview.favicon || '';
+            return '<tr>' +
+                '<td><div class="db-domain">' + esc(b.domain) + '</div>' +
+                '<div class="db-sub">' + (b.replace_page_logo ? '替换页面 Logo' : '不替换页面 Logo') +
+                (b.seo_enabled ? ' · SEO 标签开' : ' · SEO 标签关') + '</div></td>' +
+                '<td>' + (b.brand_name ? esc(b.brand_name) : '<span style="color:#b6bcc6;">—</span>') + '</td>' +
+                '<td>' + thumb(preview.logo || '') + '</td>' +
+                '<td>' + thumb(icon) + '</td>' +
+                '<td><span class="db-badge ' + (b.enabled ? 'on' : 'off') + '">' + (b.enabled ? '启用中' : '已停用') + '</span></td>' +
+                '<td>' + esc(b.updated_at || '') + '</td>' +
+                '<td class="db-actions">' +
+                '<button class="layui-btn layui-btn-xs" data-act="edit" data-id="' + b.id + '">编辑</button>' +
+                '<button class="layui-btn layui-btn-xs layui-btn-danger" data-act="del" data-id="' + b.id + '">删除</button>' +
+                '</td></tr>';
+        }).join('');
+    }
+
+    function load() {
+        request(API.list).then(function (res) {
+            if (res && res.error) { toast(res.error, 2); return; }
+            brands = (res && res.brands) || [];
+            render();
+        }).catch(function () { toast('加载失败', 2); });
+    }
+
+    function openModal(brand) {
+        current = brand || null;
+        $('dbModalTitle').textContent = current ? ('编辑：' + current.domain) : '新增域名品牌';
+        $('dbDomain').value = current ? current.domain : '';
+        $('dbDomain').disabled = !!current;
+        $('dbBrandName').value = current ? (current.brand_name || '') : '';
+        $('dbEnabled').checked = current ? !!current.enabled : true;
+        $('dbReplaceLogo').checked = current ? !!current.replace_page_logo : true;
+        $('dbSeoEnabled').checked = current ? !!current.seo_enabled : true;
+        $('dbLogoSelector').value = current ? (current.logo_selector || '') : '';
+        $('dbAssetsWrap').style.display = current ? 'block' : 'none';
+        $('dbAssetsHint').textContent = current
+            ? '当前域名：' + current.domain + '（图标文件保存后立即生效）'
+            : '先保存基础配置，再上传图片。';
+        renderUploads();
+        renderPreview();
+        $('dbMask').classList.add('open');
+        $('dbModal').classList.add('open');
+    }
+
+    function closeModal() {
+        $('dbMask').classList.remove('open');
+        $('dbModal').classList.remove('open');
+        current = null;
+    }
+
+    function renderUploads() {
+        var grid = $('dbUploadGrid');
+        if (!grid) { return; }
+        grid.innerHTML = UPLOAD_META.map(function (m) {
+            return '<div class="db-upload-item">' +
+                '<div class="name">' + esc(m.label) + '<em>' + esc(m.tip) + '</em></div>' +
+                '<label class="layui-btn layui-btn-xs layui-btn-primary" style="margin:0;">' +
+                '上传<input type="file" data-kind="' + m.kind + '" accept="image/*,.ico" style="display:none;"></label>' +
+                '</div>';
+        }).join('');
+        grid.querySelectorAll('input[type=file]').forEach(function (input) {
+            input.addEventListener('change', function () {
+                if (input.files && input.files[0]) { upload(input.dataset.kind, input.files[0], input); }
+            });
+        });
+    }
+
+    function renderPreview() {
+        var box = $('dbPreview');
+        if (!current) { box.innerHTML = ''; return; }
+        var p = current.preview || {};
+        var items = [];
+        if (p.logo) { items.push('<img src="' + esc(p.logo) + '" alt="logo" style="max-height:52px;">'); }
+        if (p.favicon) { items.push('<img class="ico" src="' + esc(p.favicon) + '" alt="favicon">'); }
+        if (p.icon_192) { items.push('<img class="ico" src="' + esc(p.icon_192) + '" alt="192">'); }
+        if (p.og_image) { items.push('<img src="' + esc(p.og_image) + '" alt="og" style="max-height:52px;">'); }
+        box.innerHTML = items.length ? items.join('') : '<span style="font-size:12px;color:#9aa1ac;">还没有图片</span>';
+    }
+
+    function save() {
+        var domain = $('dbDomain').value.trim();
+        if (!domain) { toast('请填写域名', 2); return; }
+        var payload = {
+            domain: domain,
+            brand_name: $('dbBrandName').value.trim(),
+            enabled: $('dbEnabled').checked,
+            replace_page_logo: $('dbReplaceLogo').checked,
+            seo_enabled: $('dbSeoEnabled').checked,
+            logo_selector: $('dbLogoSelector').value.trim()
+        };
+        if (current) { payload.id = current.id; }
+        postJson(API.save, payload).then(function (res) {
+            if (res && res.error) { toast(res.error, 2); return; }
+            current = res.brand;
+            $('dbDomain').disabled = true;
+            $('dbAssetsWrap').style.display = 'block';
+            $('dbAssetsHint').textContent = '当前域名：' + current.domain + '（图标文件保存后立即生效）';
+            renderPreview();
+            toast('已保存');
+            load();
+        }).catch(function () { toast('保存失败', 2); });
+    }
+
+    function upload(kind, file, input) {
+        if (!current) { toast('请先保存基础配置', 2); return; }
+        var fd = new FormData();
+        fd.append('id', current.id);
+        fd.append('kind', kind);
+        fd.append('file', file);
+        toast('上传中…', 0);
+        request(API.upload, { method: 'POST', body: fd }).then(function (res) {
+            if (input) { input.value = ''; }
+            if (res && res.error) { toast(res.error, 2); return; }
+            current = res.brand;
+            renderPreview();
+            toast(res.message || '上传成功');
+            load();
+        }).catch(function () { toast('上传失败', 2); });
+    }
+
+    function regenerate() {
+        if (!current) { return; }
+        postJson(API.regenerate, { id: current.id }).then(function (res) {
+            if (res && res.error) { toast(res.error, 2); return; }
+            current = res.brand;
+            renderPreview();
+            toast(res.message || '已重新生成');
+            load();
+        }).catch(function () { toast('生成失败', 2); });
+    }
+
+    function remove(id) {
+        if (window.layer && layer.confirm) {
+            layer.confirm('确定删除该域名的品牌配置吗？图片文件也会被删除。', { icon: 3, title: '提示' }, function (index) {
+                layer.close(index);
+                doRemove(id);
+            });
+        } else if (window.confirm('确定删除该域名的品牌配置吗？')) {
+            doRemove(id);
+        }
+    }
+
+    function doRemove(id) {
+        postJson(API.del, { id: id }).then(function (res) {
+            if (res && res.error) { toast(res.error, 2); return; }
+            toast('已删除');
+            load();
+        }).catch(function () { toast('删除失败', 2); });
+    }
+
+    $('dbAdd').addEventListener('click', function () { openModal(null); });
+    $('dbRefresh').addEventListener('click', load);
+    $('dbClose').addEventListener('click', closeModal);
+    $('dbCancel').addEventListener('click', closeModal);
+    $('dbMask').addEventListener('click', closeModal);
+    $('dbSave').addEventListener('click', save);
+    $('dbRegenerate').addEventListener('click', regenerate);
+
+    $('dbFileSource').addEventListener('change', function () {
+        if (this.files && this.files[0]) { upload('source_image', this.files[0], this); }
+    });
+
+    $('dbTableBody').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-act]');
+        if (!btn) { return; }
+        var id = Number(btn.dataset.id);
+        var brand = brands.filter(function (b) { return b.id === id; })[0];
+        if (!brand) { return; }
+        if (btn.dataset.act === 'edit') { openModal(brand); }
+        if (btn.dataset.act === 'del') { remove(id); }
+    });
+
+    load();
+})();
+</script>
+{% endblock %}
