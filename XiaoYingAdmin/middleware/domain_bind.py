@@ -194,8 +194,20 @@ class DomainBindMiddleware:
         if not host:
             return self.get_response(request)
 
-        # ---- 0. 域名品牌资源（favicon / logo / og 图）----
-        # 走站点自身的稳定路径，便于浏览器与搜索引擎直接抓取
+        # ---- 0. 必应站点验证文件（按域名动态返回，互不影响）----
+        if request.method in ('GET', 'HEAD'):
+            from XiaoYingAdmin.models.domain_brand import DomainBrand
+
+            if request.path.lower() == DomainBrand.BING_AUTH_PATH.lower():
+                brand = DomainBrand.resolve(host)
+                if brand and brand.enabled and brand.bing_verify_code:
+                    from XiaoYingAdmin.utils.domain_brand import bing_auth_response
+
+                    return bing_auth_response(brand)
+                # 未配置的域名一律 404，避免把其他域名的验证文件错误返回
+                return HttpResponse('', status=404)
+
+        # ---- 1. 域名品牌资源（favicon / logo / og 图）----
         if request.method in ('GET', 'HEAD'):
             from XiaoYingAdmin.models.domain_brand import DomainBrand
 

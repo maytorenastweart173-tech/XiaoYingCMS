@@ -87,84 +87,91 @@ def _load_menu_config():
 
 def _find_active_urls(menu_items, current_path):
     """
-    递归查找当前路径匹配的所有激活 URL（包括祖先菜单）。
+    查找当前路径对应的唯一激活菜单，并返回需要高亮的 URL 集合
+    （包含激活项本身与祖先菜单）。
 
-    匹配规则：
-      1. 当前请求路径与菜单项的 url 完全匹配（current_path == url）
-      2. 当前请求路径以菜单项的 url 开头（current_path.startswith(url)）
-      3. 前缀匹配：当前请求路径与菜单项的子菜单同目录（如搜索页 /search/ 与首页 /index/ 在同一目录下）
-      4. 目录级回退：如果当前路径是目录（如 /、/web/），自动尝试匹配 index/ 页面
+    关键规则：只高亮“最精确”的那一项。
+    例如 /users/create/ 同时以 /users/ 开头，但只应高亮「创建用户」，
+    不能把「用户列表」也点亮；/spider/logs/analytics/ 同理只应高亮
+    「数据分析」，不能同时点亮「蜘蛛日志」。
+
+    匹配优先级：
+      1. URL 完全相等
+      2. 最长前缀匹配（current_path 以菜单 URL 开头）
+      3. 同目录兄弟页回退
+      4. 目录 index 回退
 
     参数：
       menu_items: list，菜单配置列表
       current_path: str，当前请求路径
 
     返回：
-      set，包含所有激活的菜单 url
+      set，包含激活菜单及其祖先菜单的 URL
     """
-    active_urls = set()
+    # 收集所有带 URL 的菜单项：[(url, [祖先 url, ...]), ...]
+    flat = []
 
-    for item in menu_items:
-        url = item.get('url', '')
-        children = item.get('children', [])
-
-        # 当前菜单项是否有激活的子菜单
-        child_active = set()
-        if children:
-            child_active = _find_active_urls(children, current_path)
-
-        if child_active:
-            # 子菜单有激活项 → 当前菜单也是激活的（展开父级）
+    def walk(items, ancestors):
+        for item in items:
+            url = (item.get('url') or '').strip()
+            next_ancestors = ancestors
             if url:
-                active_urls.add(url)
-            active_urls.update(child_active)
-        elif url and current_path.startswith(url):
-            # 当前请求路径以菜单项的 url 开头 → 激活
-            active_urls.add(url)
-        elif not child_active and children and not url:
-            # 前缀匹配回退：当前路径与某个子菜单同目录但非精确匹配
-            # 例如 /web/music/line1/search/ 与 /web/music/line1/index/ 同目录
-            for child in children:
-                child_url = child.get('url', '')
-                if child_url:
-                    # 比较路径段：段数相同且前 N-1 段一致 → 同目录兄弟页面
-                    child_parts = child_url.strip('/').split('/')
-                    path_parts = current_path.strip('/').split('/')
-                    if len(child_parts) == len(path_parts):
-                        is_sibling = all(
-                            child_parts[i] == path_parts[i]
-                            for i in range(len(child_parts) - 1)
-                        )
-                        if is_sibling:
-                            active_urls.update(_find_active_urls(children, current_path))
-                            break
+                flat.append((url, ancestors))
+                next_ancestors = ancestors + [url]
+            children = item.get('children') or []
+            if children:
+                walk(children, next_ancestors)
 
-    # ===== 目录级回退：访问目录时自动匹配 index 页 =====
-    # 如果当前路径是根 / 或空，尝试匹配 /web/index/
-    # 如果当前路径是 /xxx/ 格式，尝试匹配 /xxx/index/
-    if not active_urls:
-        fallback_path = None
-        if current_path in ('/', ''):
-            fallback_path = '/web/index/'
-        elif current_path.endswith('/'):
-            fallback_path = '{}index/'.format(current_path)
+    walk(menu_items, [])
 
-        if fallback_path:
-            for item in menu_items:
-                url = item.get('url', '')
-                if url and url == fallback_path:
-                    active_urls.add(url)
-                    break
-                # 也递归检查子菜单
-                if item.get('children'):
-                    child_active = _find_active_urls(item['children'], fallback_path)
-                    if child_active:
-                        if url:
-                            active_urls.add(url)
-                        active_urls.update(child_active)
-                        break
+    if not flat:
+        return set()
 
-    return active_urls
+    # 1) 精确匹配优先
+    for url, ancestors in flat:
+        if url == current_path:
+            return set(ancestors + [url])
+
+    # 2) 前缀匹配：只取最长（最精确）的一条
+    prefix_matches = [
+        (url, ancestors) for url, ancestors in flat
+        if current_path.startswith(url)
+    ]
+    if prefix_matches:
+        best_len = max(len(url) for url, _ in prefix_matches)
+        result = set()
+        for url, ancestors in prefix_matches:
+            if len(url) == best_len:
+                result.update(ancestors + [url])
+        return result
+
+    # 3) 同目录兄弟页回退
+    # 例如 /web/music/line1/search/ 与 /web/music/line1/index/ 同目录
+    # 要求路径至少 3 段，避免把 /admin/index/ 误判成 /admin/xxx/ 的兄弟页
+    for url, ancestors in flat:
+        url_parts = url.strip('/').split('/')
+        path_parts = current_path.strip('/').split('/')
+        if len(url_parts) >= 3 and len(url_parts) == len(path_parts):
+            is_sibling = all(
+                url_parts[i] == path_parts[i]
+                for i in range(len(url_parts) - 1)
+            )
+            if is_sibling:
+                return set(ancestors + [url])
+
+    # 4) 目录级回退：访问目录时自动匹配 index 页
+    fallback_path = None
+    if current_path in ('/', ''):
+        fallback_path = '/web/index/'
+    elif current_path.endswith('/'):
+        fallback_path = '{}index/'.format(current_path)
+
+    if fallback_path:
+        for url, ancestors in flat:
+            if url == fallback_path:
+                return set(ancestors + [url])
+
+    return set()
 
 
 def _filter_superuser_only(menu_items, is_superuser):

@@ -9,12 +9,13 @@
 所有函数都做了兜底：出错时返回原值 / None，绝不因为品牌配置破坏页面渲染。
 """
 
+import html as html_lib
 import io
 import logging
 import re
 
 from django.core.files.base import ContentFile
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 
 from XiaoYingAdmin.models.domain_brand import DomainBrand
 
@@ -26,6 +27,71 @@ ICON_SIZES = {
     'icon_192': 192,
     'icon_512': 512,
 }
+
+# 必应验证码：字母、数字、下划线、短横线，长度 8-128
+BING_CODE_RE = re.compile(r'^[A-Za-z0-9_-]{8,128}$')
+_BING_META_RE = re.compile(
+    r'<meta\b[^>]*\bname\s*=\s*["\']msvalidate\.01["\'][^>]*>',
+    re.IGNORECASE,
+)
+
+
+def normalize_bing_code(value):
+    return (value or '').strip()
+
+
+def validate_bing_code(value):
+    """校验并返回必应验证码；空值返回空字符串，格式错误抛 ValueError。"""
+    code = normalize_bing_code(value)
+    if not code:
+        return ''
+    if not BING_CODE_RE.match(code):
+        raise ValueError('必应验证码格式不正确，应为 8-128 位字母、数字、下划线或短横线')
+    return code
+
+
+def parse_bing_auth_xml(content):
+    """从 BingSiteAuth.xml 文件内容中解析出验证码。"""
+    if isinstance(content, bytes):
+        try:
+            text = content.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = content.decode('utf-8', 'ignore')
+    else:
+        text = str(content)
+
+    match = re.search(r'<user>\s*([^<]+?)\s*</user>', text, re.IGNORECASE)
+    if match:
+        return validate_bing_code(match.group(1))
+
+    # 兼容只包含验证码的纯文本文件
+    candidate = text.strip()
+    if candidate and '<' not in candidate:
+        return validate_bing_code(candidate)
+
+    raise ValueError('未在文件中找到 <user> 验证码，请确认上传的是 Bing 的 BingSiteAuth.xml')
+
+
+def bing_auth_response(brand):
+    """按域名动态返回 BingSiteAuth.xml 内容（不落物理文件）。"""
+    try:
+        code = validate_bing_code(getattr(brand, 'bing_verify_code', ''))
+    except ValueError:
+        raise Http404('验证码格式无效')
+    if not code:
+        raise Http404('未配置必应验证码')
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<users>\n'
+        f'  <user>{code}</user>\n'
+        '</users>\n'
+    )
+    response = HttpResponse(xml, content_type='text/xml; charset=utf-8')
+    response['Cache-Control'] = 'public, max-age=300'
+    response['X-Robots-Tag'] = 'noindex'
+    return response
+
 
 BRAND_STYLE = (
     '<style id="xy-brand-style">'
@@ -254,6 +320,15 @@ def build_head_tags(brand, host):
         if brand.icon_180 else '',
     ]
 
+    # 必应站点验证 Meta 标签（与 /BingSiteAuth.xml 同时提供）
+    bing_code = normalize_bing_code(brand.bing_verify_code)
+    if bing_code:
+        tags.append(
+            '<meta name="msvalidate.01" content="{}">'.format(
+                html_lib.escape(bing_code, quote=True)
+            )
+        )
+
     if brand.seo_enabled and brand.og_image:
         og = brand.asset_url('og_image', absolute=True, host=host)
         name = brand.brand_name or brand.domain
@@ -299,9 +374,10 @@ def apply_brand_to_html(html, host=None, brand=None):
 
         host = DomainBrand.normalize_domain(host) or brand.domain
 
-        # 清掉上一次注入的样式与旧图标/分享图，保证可重复执行
+        # 清掉上一次注入的样式与旧图标/分享图/必应 Meta，保证可重复执行
         html = _BRAND_STYLE_RE.sub('', html)
         html = _ICON_LINK_RE.sub('', html)
+        html = _BING_META_RE.sub('', html)
         if brand.seo_enabled:
             html = _SEO_META_RE.sub('', html)
 

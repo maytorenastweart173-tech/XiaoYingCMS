@@ -1,261 +1,497 @@
 /*
- * 左侧菜单专用样式 — 所有选择器都以 .sidebar-wrapper 为前缀，
- * 仅作用于侧边栏容器内，不会污染全局样式环境。
+ * 左侧侧边栏样式 v3.0 — 现代简洁版
+ * 所有菜单相关选择器都以 .sidebar-menu 限定，避免影响标签页/页面内容。
  *
- * v2.0 — 2026-07 全面现代化重构
- *   - 深色渐变背景 + 微妙阴影层次
- *   - 菜单项 hover/active 精致动画
- *   - 子菜单缩进与视觉区分
- *   - 滚动条美化
+ * 结构：
+ *   .sidebar-wrapper > .sidebar-menu
+ *     ├─ .sidebar-head  品牌区
+ *     ├─ .sidebar-scroll 菜单滚动区
+ *     │    └─ #sidebar-menu > .menu-group / .menu-leaf
+ *     └─ .sidebar-foot 底部收起 / 展开按钮
  */
 
 /* ================================
-   侧边栏容器
+   外层容器
    ================================ */
 .sidebar-wrapper {
-    flex-shrink: 0;
-    height: 100%;
-    overflow: hidden;
-    /* 右侧分隔阴影 — 让侧边栏与内容区自然分层 */
-    box-shadow: 1px 0 8px rgba(0, 0, 0, 0.08);
-    position: relative;
-    z-index: 100;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    z-index: 300;
 }
 
 .sidebar-menu {
-    width: 230px;
-    height: 100%;
+    --sb-width: 248px;
+    --sb-width-collapsed: 76px;
+    --sb-accent: #2563eb;
+    --sb-text: #4b5563;
+    --sb-text-strong: #111827;
+    --sb-muted: #9aa3b2;
+    --sb-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+    position: relative;
     display: flex;
     flex-direction: column;
-    /* 深色渐变背景 — 比纯色更有质感 */
-    background: linear-gradient(180deg, #2c303f 0%, #1e2231 100%);
+    width: var(--sb-width);
+    height: 100vh;
+    background: #ffffff;
+    border-right: 1px solid #edf0f5;
+    box-shadow: 1px 0 14px rgba(15, 23, 42, 0.04);
+    transition: width 0.28s var(--sb-ease);
     user-select: none;
 }
 
 /* ================================
-   侧边栏头部
+   品牌区
    ================================ */
-.sidebar-header {
+.sidebar-menu .sidebar-head {
     flex-shrink: 0;
-    padding: 18px 16px 14px;
-    text-align: center;
-    /* 底部浅色分隔线 */
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    /* 顶部微光 */
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
+    display: flex;
+    align-items: center;
+    height: 64px;
+    padding: 0 16px;
+    border-bottom: 1px solid #f1f4f8;
+    transition: padding 0.28s var(--sb-ease);
 }
 
-.sidebar-header h3 {
+.sidebar-menu .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+    text-decoration: none;
+    transition: gap 0.28s var(--sb-ease);
+}
+
+.sidebar-menu .sidebar-brand-mark {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: #fff;
-    margin: 0;
-    font-size: 17px;
+    font-size: 15px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.28);
+    transition: transform 0.22s var(--sb-ease), box-shadow 0.22s var(--sb-ease);
+}
+
+.sidebar-menu .sidebar-brand:hover .sidebar-brand-mark {
+    transform: translateY(-1px) scale(1.04);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.34);
+}
+
+.sidebar-menu .sidebar-brand-text {
+    font-size: 15px;
     font-weight: 600;
-    letter-spacing: 0.5px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    color: #1f2937;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.18s ease, width 0.28s var(--sb-ease);
 }
 
 /* ================================
-   LayUI 导航树覆盖（仅在侧边栏内生效）
+   底部收起 / 展开按钮
    ================================ */
-.sidebar-menu .layui-nav-tree {
-    flex: 1;
+.sidebar-menu .sidebar-foot {
+    flex-shrink: 0;
+    padding: 10px;
+    border-top: 1px solid #f1f4f8;
+    transition: padding 0.28s var(--sb-ease);
+}
+
+.sidebar-menu .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
-    padding: 6px 0;
+    height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #8b93a1;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+}
+
+.sidebar-menu .sidebar-toggle:hover {
+    background: #f5f7fa;
+    color: var(--sb-accent);
+}
+
+.sidebar-menu .sidebar-toggle i {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.sidebar-menu .sidebar-toggle-text {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.15s ease, width 0.28s var(--sb-ease);
+}
+
+.sidebar-menu .menu-empty {
+    padding: 22px 0;
+    text-align: center;
+    color: #a3aab6;
+    font-size: 13px;
+}
+
+/* ================================
+   菜单滚动区
+   ================================ */
+.sidebar-menu .sidebar-scroll {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    border-radius: 0;
-    margin-top: 0;
-    background-color: transparent;
+    padding: 10px 10px 16px;
+    scrollbar-width: thin;
+    scrollbar-color: #dfe3ea transparent;
+    transition: padding 0.28s var(--sb-ease);
 }
 
-/* ================================
-   菜单项基础样式
-   ================================ */
-
-/* 一级菜单项 */
-.sidebar-menu .layui-nav-item {
-    border-left: 3px solid transparent;
-    transition: border-color 0.2s, background 0.2s;
+.sidebar-menu .sidebar-scroll::-webkit-scrollbar {
+    width: 5px;
 }
-
-.sidebar-menu .layui-nav-item > a {
-    padding: 11px 18px 11px 15px;
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    transition: color 0.2s, background 0.2s, padding-left 0.2s;
-    border-radius: 0;
-    position: relative;
-}
-
-/* 菜单项 hover */
-.sidebar-menu .layui-nav-item > a:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.06);
-}
-
-/* 叶子菜单项（可点击跳转的）hover 时左侧轻微缩进 */
-.sidebar-menu .layui-nav-item > a[href]:not([href="javascript:;"]):hover {
-    padding-left: 20px;
-}
-
-/* ================================
-   激活/展开状态
-   ================================ */
-
-/* 当前激活的一级菜单 — 左侧绿色竖条 + 文字高亮 */
-.sidebar-menu .layui-nav-item.layui-this {
-    border-left-color: #5FB878;
-    background: linear-gradient(90deg, rgba(95, 184, 120, 0.12) 0%, transparent 80%);
-}
-
-.sidebar-menu .layui-nav-item.layui-this > a {
-    color: #fff;
-    font-weight: 500;
-}
-
-/* 已展开的父级菜单 */
-.sidebar-menu .layui-nav-item.layui-nav-itemed {
-    border-left-color: rgba(95, 184, 120, 0.3);
-    background: rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-menu .layui-nav-item.layui-nav-itemed > a {
-    color: #fff;
-}
-
-/* ================================
-   子菜单（下拉展开层）
-   ================================ */
-.sidebar-menu .layui-nav-child {
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 0;
-    padding: 4px 0;
-    margin: 0;
-    /* 过渡动画 */
-    transition: max-height 0.25s ease, opacity 0.2s ease;
-}
-
-/* 子菜单的每个项 */
-.sidebar-menu .layui-nav-child dd {
-    padding: 0;
-    line-height: 1;
-}
-
-/* 子菜单链接 */
-.sidebar-menu .layui-nav-child dd a {
-    padding: 9px 18px 9px 32px;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.55);
-    transition: color 0.2s, background 0.15s, padding-left 0.2s;
-    border-left: 2px solid transparent;
-}
-
-/* 子菜单 hover */
-.sidebar-menu .layui-nav-child dd a:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.05);
-    padding-left: 36px;
-}
-
-/* 子菜单激活 */
-.sidebar-menu .layui-nav-child dd.layui-this {
+.sidebar-menu .sidebar-scroll::-webkit-scrollbar-track {
     background: transparent;
 }
-
-.sidebar-menu .layui-nav-child dd.layui-this a {
-    color: #5FB878;
-    font-weight: 500;
-    border-left-color: #5FB878;
-    background: linear-gradient(90deg, rgba(95, 184, 120, 0.1) 0%, transparent 80%);
+.sidebar-menu .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: #e2e6ed;
+    border-radius: 3px;
+}
+.sidebar-menu .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: #cfd5df;
 }
 
-/* 二级子菜单（三级菜单的父级容器） */
-.sidebar-menu .layui-nav-child .layui-nav-child {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 2px 0;
+.sidebar-menu .sidebar-list,
+.sidebar-menu .menu-children {
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
-.sidebar-menu .layui-nav-child .layui-nav-child dd a {
-    padding-left: 48px;
+/* ================================
+   菜单项
+   ================================ */
+.sidebar-menu .menu-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--sb-text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.2;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s var(--sb-ease), color 0.2s var(--sb-ease),
+                transform 0.2s var(--sb-ease);
+}
+
+.sidebar-menu .menu-link:hover {
+    background: #f5f7fa;
+    color: var(--sb-text-strong);
+    transform: translateX(2px);
+}
+
+.sidebar-menu .menu-link:active {
+    transform: translateX(2px) scale(0.995);
+}
+
+.sidebar-menu .menu-icon {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--sb-muted);
+    transition: color 0.2s var(--sb-ease), transform 0.2s var(--sb-ease);
+}
+
+.sidebar-menu .menu-link:hover .menu-icon {
+    color: #6b7280;
+    transform: scale(1.06);
+}
+
+.sidebar-menu .menu-text {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.15s ease;
+}
+
+.sidebar-menu .menu-arrow {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #b9c0cb;
+    transition: transform 0.28s var(--sb-ease), color 0.2s var(--sb-ease);
+}
+
+.sidebar-menu .menu-group.open > .menu-parent {
+    color: var(--sb-text-strong);
+}
+
+.sidebar-menu .menu-group.open > .menu-parent .menu-arrow {
+    transform: rotate(180deg);
+}
+
+.sidebar-menu .menu-group.active-group > .menu-parent .menu-icon {
+    color: var(--sb-accent);
+}
+
+/* 当前激活项 */
+.sidebar-menu .menu-link.active {
+    background: #eef5ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.sidebar-menu .menu-link.active .menu-icon {
+    color: var(--sb-accent);
+}
+
+/* 一级菜单激活时左侧小亮条 */
+.sidebar-menu .sidebar-list > .menu-leaf > .menu-link.active::before,
+.sidebar-menu .sidebar-list > .menu-group.active-group > .menu-parent::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    border-radius: 0 3px 3px 0;
+    background: var(--sb-accent);
+}
+
+/* ================================
+   子菜单
+   ================================ */
+.sidebar-menu .menu-children {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s var(--sb-ease), opacity 0.22s ease;
+    opacity: 0;
+}
+
+.sidebar-menu .menu-group.open > .menu-children {
+    opacity: 1;
+}
+
+.sidebar-menu .menu-children .menu-link {
+    min-height: 38px;
+    padding-left: 40px;
+    font-size: 13px;
+}
+
+.sidebar-menu .menu-children .menu-icon {
+    width: 16px;
+    font-size: 12px;
+}
+
+.sidebar-menu .menu-children .menu-children .menu-link {
+    padding-left: 58px;
     font-size: 12.5px;
 }
 
-.sidebar-menu .layui-nav-child .layui-nav-child dd a:hover {
-    padding-left: 52px;
+.sidebar-menu .menu-children .menu-children .menu-icon {
+    font-size: 11px;
 }
 
 /* ================================
-   图标样式
+   收起状态（仅桌面端）
    ================================ */
-.sidebar-menu .layui-nav-item a i,
-.sidebar-menu .layui-nav-child dd a i {
-    width: 18px;
-    text-align: center;
-    margin-right: 8px;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.4);
-    transition: color 0.2s;
-}
+@media (min-width: 901px) {
+    .sidebar-menu[data-collapsed="true"] {
+        width: var(--sb-width-collapsed);
+    }
 
-.sidebar-menu .layui-nav-item a:hover i,
-.sidebar-menu .layui-nav-item.layui-this a i,
-.sidebar-menu .layui-nav-child dd a:hover i,
-.sidebar-menu .layui-nav-child dd.layui-this a i {
-    color: #5FB878;
+    .sidebar-menu[data-collapsed="true"] .sidebar-head {
+        padding: 0;
+        justify-content: center;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .sidebar-brand {
+        flex: none;
+        gap: 0;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .sidebar-brand-text {
+        width: 0;
+        opacity: 0;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .sidebar-scroll {
+        padding: 10px 12px 16px;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .menu-text,
+    .sidebar-menu[data-collapsed="true"] .menu-arrow {
+        width: 0;
+        opacity: 0;
+        overflow: hidden;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .menu-text {
+        flex: none;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .menu-children {
+        display: none;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .menu-link {
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .menu-link:hover {
+        transform: none;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .menu-icon {
+        width: auto;
+        font-size: 16px;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .sidebar-toggle {
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+    }
+
+    .sidebar-menu[data-collapsed="true"] .sidebar-toggle-text {
+        width: 0;
+        flex: none;
+        opacity: 0;
+    }
 }
 
 /* ================================
-   展开/折叠箭头（覆盖 LayUI 默认箭头）
+   收起状态下的浮动提示
    ================================ */
-
-/* 折叠状态：朝下（展开子菜单） */
-.sidebar-menu .layui-nav-item a .layui-nav-more {
-    right: 14px;
-    margin-top: -3px;
-    transform: rotate(0deg) !important;
-    transition: transform 0.25s ease;
+.sidebar-tooltip {
+    position: fixed;
+    z-index: 1200;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #111827;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+    transition: opacity 0.16s ease, transform 0.16s var(--sb-ease, ease);
 }
 
-/* 展开状态：朝上（收起子菜单） */
-.sidebar-menu .layui-nav-itemed > a .layui-nav-more {
-    transform: rotate(180deg) !important;
-    margin-top: -3px;
+.sidebar-tooltip.show {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
 }
 
 /* ================================
-   自定义细滚动条
+   移动端抽屉
    ================================ */
-
-/* 标准属性（Chrome 121+, Firefox 64+） */
-.sidebar-menu .layui-nav-tree {
-    scrollbar-width: thin !important;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent !important;
+.sidebar-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(15, 23, 42, 0.42);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
 }
 
-/* WebKit 伪元素（旧版 Chrome/Edge/Safari 兜底） */
-.sidebar-menu .layui-nav-tree::-webkit-scrollbar {
-    width: 4px !important;
-}
-.sidebar-menu .layui-nav-tree::-webkit-scrollbar-track {
-    background: transparent !important;
-}
-.sidebar-menu .layui-nav-tree::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-radius: 2px !important;
-}
-.sidebar-menu .layui-nav-tree::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
+.sidebar-mask.show {
+    opacity: 1;
+    visibility: visible;
 }
 
-/* ================================
-   空菜单提示
-   ================================ */
-.sidebar-menu .sidebar-empty {
-    text-align: center;
-    padding: 24px 0;
+.sidebar-fab {
+    display: none;
 }
 
-.sidebar-menu .sidebar-empty span {
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 13px;
+@media (max-width: 900px) {
+    .sidebar-wrapper {
+        position: static;
+        height: auto;
+        width: 0;
+    }
+
+    .sidebar-menu {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 1000;
+        width: 258px;
+        height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 40px rgba(15, 23, 42, 0.2);
+    }
+
+    .sidebar-menu.mobile-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-menu .sidebar-toggle {
+        display: none;
+    }
+
+    .sidebar-menu .sidebar-foot {
+        display: none;
+    }
+
+    .sidebar-fab {
+        position: fixed;
+        left: 14px;
+        bottom: 18px;
+        z-index: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border: 0;
+        border-radius: 50%;
+        background: #2563eb;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+        transition: opacity 0.2s, visibility 0.2s;
+    }
+
+    .sidebar-fab.hide {
+        opacity: 0;
+        visibility: hidden;
+    }
 }

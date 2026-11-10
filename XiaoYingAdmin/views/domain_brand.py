@@ -19,7 +19,11 @@ from django.views.decorators.http import require_POST
 
 from XiaoYingAdmin.common.http import err, get_or_404, parse_json_body
 from XiaoYingAdmin.models.domain_brand import DomainBrand
-from XiaoYingAdmin.utils.domain_brand import generate_icon_assets
+from XiaoYingAdmin.utils.domain_brand import (
+    generate_icon_assets,
+    parse_bing_auth_xml,
+    validate_bing_code,
+)
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 ALLOWED_EXT = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico'}
@@ -68,12 +72,20 @@ def api_domain_brand_save(request):
     if len(domain) > 255:
         return err('域名过长')
 
+    # 先校验验证码，避免无效输入时留下空白记录
+    try:
+        bing_code = validate_bing_code(body.get('bing_verify_code'))
+    except ValueError as e:
+        return err(str(e))
+
     brand, _created = DomainBrand.objects.get_or_create(domain=domain)
     brand.brand_name = (body.get('brand_name') or '').strip()[:100]
     brand.enabled = bool(body.get('enabled', True))
     brand.replace_page_logo = bool(body.get('replace_page_logo', True))
     brand.seo_enabled = bool(body.get('seo_enabled', True))
     brand.logo_selector = (body.get('logo_selector') or '').strip()[:200]
+    brand.bing_verify_code = bing_code
+
     brand.save()
 
     return JsonResponse({'ok': True, 'brand': brand.to_dict(include_preview=True)})
@@ -92,10 +104,30 @@ def api_domain_brand_upload(request):
 
     kind = (request.POST.get('kind') or '').strip()
     upload = request.FILES.get('file')
-    if kind not in UPLOAD_FIELDS:
-        return err('未知的图片类型')
     if not upload:
         return err('请选择要上传的文件')
+
+    # 必应验证文件：只解析验证码，不保存文件本身
+    if kind == 'bing_file':
+        if upload.size > 1024 * 1024:
+            return err('验证文件不能超过 1MB')
+        try:
+            code = parse_bing_auth_xml(upload.read())
+        except ValueError as e:
+            return err(str(e))
+        if not code:
+            return err('验证文件中没有有效的验证码')
+        brand.bing_verify_code = code
+        brand.save(update_fields=['bing_verify_code', 'updated_time'])
+        return JsonResponse({
+            'ok': True,
+            'message': '已识别并保存必应验证码',
+            'bing_verify_code': code,
+            'brand': brand.to_dict(include_preview=True),
+        })
+
+    if kind not in UPLOAD_FIELDS:
+        return err('未知的图片类型')
     if upload.size > MAX_UPLOAD_BYTES:
         return err('文件不能超过 10MB')
 

@@ -1,24 +1,24 @@
 [
   {
     "name": "首页",
-    "icon": "",
+    "icon": "fas fa-house",
     "url": "/xiaoying_admin/index/",
     "children": []
   },
   {
     "name": "核心设置",
-    "icon": "",
+    "icon": "fas fa-sliders",
     "url": "",
     "children": [
       {
         "name": "网站设置",
-        "icon": "",
+        "icon": "fas fa-gear",
         "url": "/xiaoying_admin/site_settings/",
         "children": []
       },
       {
         "name": "导入导出",
-        "icon": "",
+        "icon": "fas fa-file-import",
         "url": "/xiaoying_admin/tools/export-import/",
         "children": []
       }
@@ -26,36 +26,36 @@
   },
   {
     "name": "用户管理",
-    "icon": "",
+    "icon": "fas fa-users",
     "url": "",
     "children": [
       {
         "name": "用户列表",
-        "icon": "",
+        "icon": "fas fa-user-group",
         "url": "/xiaoying_admin/users/",
         "children": []
       },
       {
         "name": "创建用户",
-        "icon": "",
+        "icon": "fas fa-user-plus",
         "url": "/xiaoying_admin/users/create/",
         "children": []
       },
       {
         "name": "登录日志",
-        "icon": "",
+        "icon": "fas fa-right-to-bracket",
         "url": "/xiaoying_admin/login_logs/",
         "children": []
       },
       {
         "name": "操作日志",
-        "icon": "",
+        "icon": "fas fa-clipboard-list",
         "url": "/xiaoying_admin/operation_logs/",
         "children": []
       },
       {
         "name": "修改密码",
-        "icon": "",
+        "icon": "fas fa-key",
         "url": "/xiaoying_admin/change_password/",
         "children": []
       }
@@ -63,29 +63,29 @@
   },
   {
     "name": "页面管理",
-    "icon": "",
+    "icon": "fas fa-layer-group",
     "url": "",
     "children": [
       {
         "name": "单页面管理",
-        "icon": "",
+        "icon": "fas fa-file-lines",
         "url": "",
         "children": [
           {
             "name": "页面生成",
-            "icon": "",
+            "icon": "fas fa-wand-magic-sparkles",
             "url": "/xiaoying_admin/pages/generate/",
             "children": []
           },
           {
             "name": "页面列表",
-            "icon": "",
+            "icon": "fas fa-table-list",
             "url": "/xiaoying_admin/pages/list/",
             "children": []
           },
           {
             "name": "域名品牌",
-            "icon": "",
+            "icon": "fas fa-globe",
             "url": "/xiaoying_admin/pages/domain-brands/",
             "children": []
           }
@@ -95,18 +95,18 @@
   },
   {
     "name": "SEO手段",
-    "icon": "",
+    "icon": "fas fa-bullseye",
     "url": "",
     "children": [
       {
         "name": "斗篷伪装",
-        "icon": "",
+        "icon": "fas fa-mask",
         "url": "/xiaoying_admin/seo/cloak/",
         "children": []
       },
       {
         "name": "域名SEO记录",
-        "icon": "",
+        "icon": "fas fa-chart-line",
         "url": "/xiaoying_admin/seo/domain-records/",
         "children": []
       }
@@ -114,24 +114,24 @@
   },
   {
     "name": "蜘蛛管理",
-    "icon": "",
+    "icon": "fas fa-spider",
     "url": "",
     "children": [
       {
         "name": "蜘蛛日志",
-        "icon": "",
+        "icon": "fas fa-bug",
         "url": "/xiaoying_admin/spider/logs/",
         "children": []
       },
       {
         "name": "数据分析",
-        "icon": "",
+        "icon": "fas fa-chart-pie",
         "url": "/xiaoying_admin/spider/logs/analytics/",
         "children": []
       },
       {
         "name": "路径过滤",
-        "icon": "",
+        "icon": "fas fa-filter",
         "url": "/xiaoying_admin/spider/logs/ignore-paths/",
         "children": []
       }
@@ -139,19 +139,19 @@
   },
   {
     "name": "安全防护",
-    "icon": "",
+    "icon": "fas fa-shield-halved",
     "url": "",
     "children": [
       {
         "name": "防火墙",
-        "icon": "",
+        "icon": "fas fa-fire",
         "superuser_only": true,
         "url": "/xiaoying_admin/firewall/",
         "children": []
       },
       {
         "name": "静态文件路由",
-        "icon": "",
+        "icon": "fas fa-route",
         "url": "/xiaoying_admin/static-file/",
         "children": []
       }

@@ -90,6 +90,13 @@ class DomainBrand(BaseModel):
         help_text='可选：精确指定页面内 Logo 元素，留空则自动识别头部 Logo',
     )
 
+    # 必应站点验证（Bing Webmaster Tools）
+    bing_verify_code = models.CharField(
+        '必应验证码', max_length=128, blank=True, default='',
+        help_text='Bing Webmaster Tools 提供的 msvalidate.01 验证码；'
+                  '配置后本域名及子域名会提供 /BingSiteAuth.xml 并输出 Meta 标签',
+    )
+
     class Meta:
         verbose_name = '域名品牌'
         verbose_name_plural = '域名品牌'
@@ -121,6 +128,9 @@ class DomainBrand(BaseModel):
         '/site-logo.png': 'logo',
         '/og-image.png': 'og_image',
     }
+
+    # 必应站点验证文件路径（按访问域名动态返回，不落物理文件）
+    BING_AUTH_PATH = '/BingSiteAuth.xml'
 
     # ------------------------------------------------------------------
     # 域名解析：精确 → 逐级向上回退（子域名继承根域名）
@@ -208,6 +218,8 @@ class DomainBrand(BaseModel):
             'replace_page_logo': self.replace_page_logo,
             'seo_enabled': self.seo_enabled,
             'logo_selector': self.logo_selector,
+            'bing_verify_code': self.bing_verify_code or '',
+            'bing_configured': bool(self.bing_verify_code),
             'manual_sizes': self.manual_sizes or [],
             'updated_at': self.updated_time.strftime('%Y-%m-%d %H:%M:%S') if self.updated_time else '',
             'assets': {

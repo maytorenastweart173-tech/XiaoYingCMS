@@ -1,31 +1,203 @@
-{# 侧边栏容器 — LayUI 垂直导航结构 #}
-<div class="sidebar-menu">
-    <div class="sidebar-header"><h3>{{ site_name }}</h3></div>
-    <ul class="layui-nav layui-nav-tree" id="sidebar-menu" lay-filter="sidebar-menu" lay-accordion>
-        {% include 'XiaoYingAdmin/左侧菜单/左侧菜单_项.html' with menu_items=sidebar_menu_data is_child=False %}
-    </ul>
+{% load static %}
+{% comment %}
+左侧侧边栏 — 现代简洁版
+- 支持桌面端收起 / 展开（248px ⇄ 76px），状态持久化
+- 收起时仅显示图标，悬停显示浮动提示
+- 移动端自动变为抽屉式，底部悬浮按钮打开
+{% endcomment %}
+<div class="sidebar-menu" id="sidebarMenu" data-collapsed="false">
+    {# 顶部品牌区 #}
+    <div class="sidebar-head">
+        <a class="sidebar-brand" href="/xiaoying_admin/index/">
+            <span class="sidebar-brand-mark"><i class="fas fa-bolt"></i></span>
+            <span class="sidebar-brand-text">{{ site_name }}</span>
+        </a>
+    </div>
+
+    {# 菜单滚动区 #}
+    <nav class="sidebar-scroll">
+        <ul class="sidebar-list" id="sidebar-menu">
+            {% include 'XiaoYingAdmin/左侧菜单/左侧菜单_项.html' with menu_items=sidebar_menu_data is_child=False %}
+        </ul>
+    </nav>
+
+    {# 底部收起 / 展开按钮 #}
+    <div class="sidebar-foot">
+        <button type="button" class="sidebar-toggle" id="sidebarToggle"
+                title="收起菜单" aria-label="收起菜单" aria-expanded="true">
+            <i class="fas fa-angles-left"></i>
+            <span class="sidebar-toggle-text">收起菜单</span>
+        </button>
+    </div>
 </div>
 
-{# 自定义细滚动条 — 用 JS 设置以兼容所有浏览器 #}
-<style id="scrollbar-style">
-/* 标准属性兜底（Chrome 121+ / Firefox） */
-.sidebar-menu .layui-nav-tree {
-    scrollbar-width: thin !important;
-    scrollbar-color: rgba(255, 255, 255, 0.15) transparent !important;
-}
-</style>
+{# 移动端遮罩与打开按钮 #}
+<div class="sidebar-mask" id="sidebarMask"></div>
+<button type="button" class="sidebar-fab" id="sidebarFab" aria-label="打开菜单">
+    <i class="fas fa-bars"></i>
+</button>
+
 <script>
-(function() {
-    var el = document.querySelector('.sidebar-menu .layui-nav-tree');
-    if (!el) return;
-    // 直接通过 JS 设置样式，绕过 CSS 解析器对 ::-webkit-scrollbar 的限制
-    var style = document.createElement('style');
-    style.textContent = [
-        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar { width: 4px !important; }',
-        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar-track { background: transparent !important; }',
-        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15) !important; border-radius: 2px !important; }',
-        '.sidebar-menu .layui-nav-tree::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3) !important; }',
-    ].join('\n');
-    document.head.appendChild(style);
+(function () {
+    var menu = document.getElementById('sidebarMenu');
+    if (!menu) return;
+
+    var KEY = 'xy_sidebar_collapsed';
+    var list = document.getElementById('sidebar-menu');
+    var toggle = document.getElementById('sidebarToggle');
+    var mask = document.getElementById('sidebarMask');
+    var fab = document.getElementById('sidebarFab');
+
+    function isMobile() {
+        return window.matchMedia('(max-width: 900px)').matches;
+    }
+
+    function applyCollapsed(collapsed, persist) {
+        menu.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            toggle.setAttribute('title', collapsed ? '展开菜单' : '收起菜单');
+            toggle.setAttribute('aria-label', collapsed ? '展开菜单' : '收起菜单');
+            var icon = toggle.querySelector('i');
+            if (icon) icon.className = collapsed ? 'fas fa-angles-right' : 'fas fa-angles-left';
+            var label = toggle.querySelector('.sidebar-toggle-text');
+            if (label) label.textContent = collapsed ? '展开菜单' : '收起菜单';
+        }
+        if (persist) {
+            try { localStorage.setItem(KEY, collapsed ? '1' : '0'); } catch (e) {}
+        }
+    }
+
+    // 恢复上次状态（不重复写 localStorage）
+    try { applyCollapsed(localStorage.getItem(KEY) === '1', false); } catch (e) {}
+
+    // ===== 子菜单平滑展开 / 收起 =====
+    function childMenu(group) {
+        for (var i = 0; i < group.children.length; i++) {
+            if (group.children[i].classList &&
+                group.children[i].classList.contains('menu-children')) {
+                return group.children[i];
+            }
+        }
+        return null;
+    }
+
+    function setGroupOpen(group, open, animate) {
+        var children = childMenu(group);
+        if (!children) return;
+
+        if (open) {
+            group.classList.add('open');
+            if (!animate) {
+                children.style.maxHeight = 'none';
+                return;
+            }
+            // 先量出真实高度，让过渡更自然（避免大 max-height 造成的生硬感）
+            children.style.maxHeight = children.scrollHeight + 'px';
+            var done = function (ev) {
+                if (ev.target !== children) return;
+                children.removeEventListener('transitionend', done);
+                if (group.classList.contains('open')) {
+                    children.style.maxHeight = 'none';
+                }
+            };
+            children.addEventListener('transitionend', done);
+        } else {
+            children.style.maxHeight = children.scrollHeight + 'px';
+            // 强制回流，确保从实际高度开始收起
+            void children.offsetHeight;
+            group.classList.remove('open');
+            children.style.maxHeight = '0px';
+        }
+    }
+
+    // 展开所有包含当前激活项的父级
+    if (list) {
+        var activeLink = list.querySelector('.menu-link.active');
+        var node = activeLink ? activeLink.parentElement : null;
+        while (node && node !== list) {
+            if (node.classList && node.classList.contains('menu-group')) {
+                node.classList.add('open', 'active-group');
+            }
+            node = node.parentElement;
+        }
+        // 初始已展开的父级无需动画
+        Array.prototype.forEach.call(
+            list.querySelectorAll('.menu-group.open'),
+            function (group) {
+                var children = childMenu(group);
+                if (children) children.style.maxHeight = 'none';
+            }
+        );
+
+        list.addEventListener('click', function (e) {
+            var parent = e.target.closest('.menu-parent');
+            if (parent) {
+                var group = parent.parentElement;
+                if (menu.getAttribute('data-collapsed') === 'true' && !isMobile()) {
+                    applyCollapsed(false, true);
+                    setGroupOpen(group, true, true);
+                    return;
+                }
+                setGroupOpen(group, !group.classList.contains('open'), true);
+                return;
+            }
+            if (isMobile() && e.target.closest('a.menu-link')) {
+                closeMobile();
+            }
+        });
+    }
+
+    if (toggle) {
+        toggle.addEventListener('click', function () {
+            if (isMobile()) {
+                closeMobile();
+            } else {
+                applyCollapsed(menu.getAttribute('data-collapsed') !== 'true', true);
+            }
+        });
+    }
+
+    // ===== 移动端抽屉 =====
+    function openMobile() {
+        menu.classList.add('mobile-open');
+        if (mask) mask.classList.add('show');
+        if (fab) fab.classList.add('hide');
+    }
+    function closeMobile() {
+        menu.classList.remove('mobile-open');
+        if (mask) mask.classList.remove('show');
+        if (fab) fab.classList.remove('hide');
+    }
+    if (fab) fab.addEventListener('click', openMobile);
+    if (mask) mask.addEventListener('click', closeMobile);
+    window.addEventListener('resize', function () {
+        if (!isMobile()) closeMobile();
+    });
+    if (isMobile()) closeMobile();
+
+    // ===== 收起状态下的浮动文字提示 =====
+    var tip = document.createElement('div');
+    tip.className = 'sidebar-tooltip';
+    document.body.appendChild(tip);
+    if (list) {
+        list.addEventListener('mouseover', function (e) {
+            if (isMobile() || menu.getAttribute('data-collapsed') !== 'true') return;
+            var link = e.target.closest('.menu-link');
+            if (!link) return;
+            var text = link.getAttribute('data-title');
+            if (!text) return;
+            var rect = link.getBoundingClientRect();
+            tip.textContent = text;
+            tip.style.left = (rect.right + 12) + 'px';
+            tip.style.top = (rect.top + rect.height / 2) + 'px';
+            tip.classList.add('show');
+        });
+        list.addEventListener('mouseout', function (e) {
+            if (e.target.closest('.menu-link')) tip.classList.remove('show');
+        });
+        list.addEventListener('scroll', function () { tip.classList.remove('show'); }, true);
+    }
+    window.addEventListener('blur', function () { tip.classList.remove('show'); });
 })();
 </script>

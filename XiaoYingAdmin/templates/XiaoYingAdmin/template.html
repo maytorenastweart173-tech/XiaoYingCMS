@@ -24,7 +24,7 @@
     <style>
         html, body { height: 100%; margin: 0; }
         body { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; padding: 15px; overflow-x: hidden; }
+        .main-content { flex: 1; min-width: 0; padding: 15px; overflow-x: hidden; }
     </style>
 
     {% block head %}{% endblock %}
@@ -66,47 +66,7 @@
         {% block body %}{% endblock %}
     </div>
 
-    {# ===== JS：侧边栏菜单高亮（浏览器端按 URL 匹配） ===== #}
-    {% if show_sidebar %}
-    <script>
-    (function () {
-        var currentPath = window.location.pathname;
-        var menu = document.getElementById('sidebar-menu');
-        if (!menu) return;
-
-        // 遍历所有 <a href>，查找与当前 URL 完全匹配的菜单项
-        var links = menu.querySelectorAll('a[href]');
-        var matched = null;
-        for (var i = 0; i < links.length; i++) {
-            if (links[i].getAttribute('href') === currentPath) {
-                matched = links[i];
-                break;
-            }
-        }
-
-        if (matched) {
-            // 高亮当前匹配的菜单项：子菜单在 <dd> 内，layui-this 加在 <dd> 上；
-            // 一级菜单直接加在 .layui-nav-item 上
-            var dd = matched.closest('dd');
-            var item = matched.closest('.layui-nav-item');
-            if (dd) {
-                dd.classList.add('layui-this');
-            } else if (item) {
-                item.classList.add('layui-this');
-            }
-
-            // 递归展开所有祖先父级菜单（使子菜单可见）
-            var node = matched.parentElement;
-            while (node && node !== menu) {
-                if (node.classList && node.classList.contains('layui-nav-item')) {
-                    node.classList.add('layui-nav-itemed');
-                }
-                node = node.parentElement;
-            }
-        }
-    })();
-    </script>
-    {% endif %}
+    {# ===== JS：侧边栏菜单高亮由侧边栏模板内的脚本处理 ===== #}
 
     {% block js %}{% endblock %}
 
