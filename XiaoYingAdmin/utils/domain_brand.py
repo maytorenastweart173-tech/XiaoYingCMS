@@ -107,16 +107,70 @@ BRAND_STYLE = (
 # =============================================================================
 
 def _square(img, size, background=(0, 0, 0, 0)):
-    """把图片等比缩放并居中放到正方形画布上。"""
+    """把图片等比缩放（支持放大）并居中放到正方形画布上。"""
     from PIL import Image
 
     img = img.convert('RGBA')
-    img.thumbnail((size, size), Image.LANCZOS)
+    if img.width and img.height:
+        ratio = min(size / img.width, size / img.height)
+        new_w = max(1, int(round(img.width * ratio)))
+        new_h = max(1, int(round(img.height * ratio)))
+        if (new_w, new_h) != img.size:
+            img = img.resize((new_w, new_h), Image.LANCZOS)
     canvas = Image.new('RGBA', (size, size), background)
     left = (size - img.width) // 2
     top = (size - img.height) // 2
     canvas.paste(img, (left, top), img)
     return canvas
+
+
+def smart_crop(img, threshold=10, padding_ratio=0.04):
+    """裁剪掉图片四周的透明或纯色留白，让 Logo 内容尽量占满画布。
+
+    很多上传的 Logo 是“大画布 + 小图案”，直接缩放会导致生成的图标看起来很小。
+    这里先根据透明通道或背景色找出真实内容区域，再按比例留一点边距后裁剪。
+    """
+    from PIL import Image, ImageChops
+
+    img = img.convert('RGBA')
+    width, height = img.size
+    if not width or not height:
+        return img
+
+    alpha = img.getchannel('A')
+    alpha_min, _alpha_max = alpha.getextrema()
+    bbox = None
+
+    if alpha_min < 255:
+        # 有透明区域：直接用 alpha 通道定位内容
+        bbox = alpha.getbbox()
+    else:
+        # 完全不透明：以左上角颜色作为背景色，找出与背景不同的区域
+        background = img.getpixel((0, 0))
+        bg_img = Image.new('RGBA', img.size, background)
+        diff = ImageChops.difference(img, bg_img).convert('L')
+        mask = diff.point(lambda p: 255 if p > threshold else 0)
+        bbox = mask.getbbox()
+
+    if not bbox:
+        return img
+
+    left, top, right, bottom = bbox
+    content_w = right - left
+    content_h = bottom - top
+    if content_w <= 0 or content_h <= 0:
+        return img
+
+    # 内容本来就占满画布时不裁，避免影响正常图片
+    if content_w >= width * 0.9 and content_h >= height * 0.9:
+        return img
+
+    padding = int(max(content_w, content_h) * padding_ratio)
+    left = max(0, left - padding)
+    top = max(0, top - padding)
+    right = min(width, right + padding)
+    bottom = min(height, bottom + padding)
+    return img.crop((left, top, right, bottom))
 
 
 def _save_field(brand, field_name, content, filename):
@@ -149,6 +203,8 @@ def generate_icon_assets(brand):
         source.open('rb')
         img = Image.open(source)
         img.load()
+        # 自动裁掉四周留白，避免“大画布 + 小图案”导致图标显示过小
+        img = smart_crop(img)
     except Exception as e:  # noqa: BLE001
         return False, f'图片读取失败：{e}', []
     finally:
@@ -186,8 +242,8 @@ def generate_icon_assets(brand):
             _save_field(brand, 'og_image', buf.getvalue(), 'og-image.jpg')
             generated.append('og_image')
 
-        if not brand.logo and 'logo' not in manual:
-            # 没有单独上传 Logo 时，用 512 图标兼任页面 Logo
+        if 'logo' not in manual:
+            # 没有手动上传 Logo 时，用裁剪后的源图生成页面 Logo
             buf = io.BytesIO()
             _square(img, 512).save(buf, format='PNG', optimize=True)
             _save_field(brand, 'logo', buf.getvalue(), 'logo.png')

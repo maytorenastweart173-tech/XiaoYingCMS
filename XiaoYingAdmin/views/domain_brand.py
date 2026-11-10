@@ -138,12 +138,9 @@ def api_domain_brand_upload(request):
     setattr(brand, kind, upload)
 
     manual = list(brand.manual_sizes or [])
-    if kind not in ('source_image', 'logo'):
-        if kind not in manual:
-            manual.append(kind)
-    else:
-        # 重新上传原图/Logo 时，之前手工固定的尺寸仍保留，其余重新生成
-        pass
+    # 除原图外，手动上传的尺寸都记录下来；自动生成时会跳过，避免覆盖
+    if kind != 'source_image' and kind not in manual:
+        manual.append(kind)
     brand.manual_sizes = manual
     brand.save()
 
