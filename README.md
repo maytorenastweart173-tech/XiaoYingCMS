@@ -263,6 +263,9 @@ server {
 
     location / {
         proxy_pass http://127.0.0.1:8003;
+        # 多域名共用同一个后端时，缓存 key 必须包含域名，
+        # 否则不同域名的 favicon / Logo / BingSiteAuth.xml 会互相串
+        proxy_cache_key "$scheme$host$request_uri";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -272,6 +275,8 @@ server {
     }
 }
 ```
+
+> 使用宝塔面板时，建议把 `proxy_cache_key` 放进 `vhost/nginx/extension/<站点名>/` 下的独立配置里，避免面板重写站点配置时丢失。否则同一个后端承载多个域名时，`/favicon.ico`、`/site-logo.png`、`/BingSiteAuth.xml` 等按域名返回的内容会被错误缓存到其他域名。
 
 启用 HTTPS 建议使用 Certbot：
 
