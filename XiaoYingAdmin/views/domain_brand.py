@@ -86,6 +86,35 @@ def api_domain_brand_save(request):
     brand.logo_selector = (body.get('logo_selector') or '').strip()[:200]
     brand.bing_verify_code = bing_code
 
+    # robots.txt / sitemap.xml 配置
+    brand.robots_txt = (body.get('robots_txt') or '').strip()[:20000]
+
+    scope = body.get('sitemap_scope') or 'inherit'
+    brand.sitemap_scope = scope if scope in ('inherit', 'custom') else 'inherit'
+
+    hosts_raw = body.get('sitemap_hosts') or []
+    if isinstance(hosts_raw, str):
+        hosts_raw = hosts_raw.replace(',', '\n').splitlines()
+    sitemap_hosts = []
+    for value in hosts_raw:
+        host = DomainBrand.normalize_domain(value)
+        if host and '.' in host and not host.startswith('*') and host not in sitemap_hosts:
+            sitemap_hosts.append(host)
+    brand.sitemap_hosts = sitemap_hosts[:200]
+
+    extra_urls = []
+    for line in (body.get('sitemap_extra_urls') or '').splitlines():
+        value = line.strip()
+        if not value:
+            continue
+        if value.startswith(('http://', 'https://')):
+            extra_urls.append(value)
+        elif value.startswith('/'):
+            extra_urls.append(value)
+        else:
+            extra_urls.append('/' + value)
+    brand.sitemap_extra_urls = '\n'.join(extra_urls[:500])
+
     brand.save()
 
     return JsonResponse({'ok': True, 'brand': brand.to_dict(include_preview=True)})

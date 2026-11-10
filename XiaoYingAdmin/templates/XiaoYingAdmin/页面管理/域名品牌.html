@@ -63,7 +63,8 @@
         给一个域名配置 Logo 与图标后，该域名下<strong>所有页面（含多级子域名）</strong>都会自动使用。<br>
         规则：根域名（如 example.com）的配置会被 m.example.com、a.b.example.com 自动继承；如需单独样式，可为子域名再建一条记录。<br>
         图标会同时输出到 <code>/favicon.ico</code>、<code>/apple-touch-icon.png</code> 与 og:image 标签，搜索引擎可直接抓取。<br>
-        必应验证：填写或上传验证码后，该域名会提供 <code>/BingSiteAuth.xml</code> 并输出 <code>msvalidate.01</code> Meta，同样按域名隔离。
+        必应验证：填写或上传验证码后，该域名会提供 <code>/BingSiteAuth.xml</code> 并输出 <code>msvalidate.01</code> Meta，同样按域名隔离。<br>
+        robots.txt / sitemap.xml：按域名动态生成；主域名默认收录自己和已知子域名，子域名可单独覆盖收录范围。
         不会影响其他域名，也不影响后台系统自身图标。
     </div>
 
@@ -125,6 +126,32 @@
             <div class="db-field" style="margin-top:8px;">
                 <input type="text" id="dbLogoSelector" class="layui-input" placeholder="如 #logo 或 .site-logo，留空自动识别">
                 <div class="tip">页面 Logo 是文字或特殊结构时可填这里；支持 #id 与 .class 两种写法。</div>
+            </div>
+        </details>
+
+        <details class="db-adv">
+            <summary>robots.txt / sitemap.xml 设置</summary>
+            <div class="db-field" style="margin-top:10px;">
+                <label>Sitemap 主机范围</label>
+                <select id="dbSitemapScope" class="layui-input">
+                    <option value="inherit">继承主域名范围（自动收录主域名 + 已知子域名）</option>
+                    <option value="custom">自定义主机列表</option>
+                </select>
+                <div class="tip">通配符绑定（*.example.com）无法自动展开，可在下方手动补充具体子域名。</div>
+            </div>
+            <div class="db-field">
+                <label>额外 / 自定义主机</label>
+                <textarea id="dbSitemapHosts" class="layui-textarea" rows="3" placeholder="每行一个，如 aaa.example.com"></textarea>
+                <div class="tip">“继承”时作为额外补充；“自定义”时只收录这里列出的主机（当前域名始终包含）。</div>
+            </div>
+            <div class="db-field">
+                <label>Sitemap 额外 URL</label>
+                <textarea id="dbSitemapExtraUrls" class="layui-textarea" rows="3" placeholder="每行一个：/about.html 或 https://bbb.example.com/page.html"></textarea>
+            </div>
+            <div class="db-field">
+                <label>自定义 robots.txt</label>
+                <textarea id="dbRobotsTxt" class="layui-textarea" rows="5" placeholder="留空自动生成：User-agent: * / Allow: / / Sitemap: https://当前域名/sitemap.xml"></textarea>
+                <div class="tip">留空使用默认内容；自定义内容会自动补上当前域名的 Sitemap 行。</div>
             </div>
         </details>
 
@@ -225,7 +252,8 @@
                 '<td><div class="db-domain">' + esc(b.domain) + '</div>' +
                 '<div class="db-sub">' + (b.replace_page_logo ? '替换页面 Logo' : '不替换页面 Logo') +
                 (b.seo_enabled ? ' · SEO 标签开' : ' · SEO 标签关') +
-                (b.bing_configured ? ' · 必应验证已配' : '') + '</div></td>' +
+                (b.bing_configured ? ' · 必应验证已配' : '') +
+                (b.sitemap_scope === 'custom' ? ' · Sitemap 自定义' : '') + '</div></td>' +
                 '<td>' + (b.brand_name ? esc(b.brand_name) : '<span style="color:#b6bcc6;">—</span>') + '</td>' +
                 '<td>' + thumb(preview.logo || '') + '</td>' +
                 '<td>' + thumb(icon) + '</td>' +
@@ -266,6 +294,10 @@
         $('dbReplaceLogo').checked = current ? !!current.replace_page_logo : true;
         $('dbSeoEnabled').checked = current ? !!current.seo_enabled : true;
         $('dbLogoSelector').value = current ? (current.logo_selector || '') : '';
+        $('dbSitemapScope').value = current ? (current.sitemap_scope || 'inherit') : 'inherit';
+        $('dbSitemapHosts').value = current ? ((current.sitemap_hosts || []).join('\n')) : '';
+        $('dbSitemapExtraUrls').value = current ? (current.sitemap_extra_urls || '') : '';
+        $('dbRobotsTxt').value = current ? (current.robots_txt || '') : '';
         $('dbAssetsWrap').style.display = current ? 'block' : 'none';
         $('dbAssetsHint').textContent = current
             ? '当前域名：' + current.domain + '（图标文件保存后立即生效）'
@@ -333,7 +365,11 @@
             enabled: $('dbEnabled').checked,
             replace_page_logo: $('dbReplaceLogo').checked,
             seo_enabled: $('dbSeoEnabled').checked,
-            logo_selector: $('dbLogoSelector').value.trim()
+            logo_selector: $('dbLogoSelector').value.trim(),
+            sitemap_scope: $('dbSitemapScope').value,
+            sitemap_hosts: $('dbSitemapHosts').value,
+            sitemap_extra_urls: $('dbSitemapExtraUrls').value,
+            robots_txt: $('dbRobotsTxt').value
         };
         if (current) { payload.id = current.id; }
         postJson(API.save, payload).then(function (res) {

@@ -194,11 +194,24 @@ class DomainBindMiddleware:
         if not host:
             return self.get_response(request)
 
-        # ---- 0. 必应站点验证文件（按域名动态返回，互不影响）----
+        # ---- 0. robots.txt / sitemap.xml（按域名动态生成）----
+        path_lower = request.path.lower()
+        if request.method in ('GET', 'HEAD'):
+            if path_lower in ('/robots.txt', '/sitemap.xml'):
+                from XiaoYingAdmin.utils.seo_files import robots_response, sitemap_response
+
+                try:
+                    if path_lower == '/robots.txt':
+                        return robots_response(host)
+                    return sitemap_response(host)
+                except Http404:
+                    return HttpResponse('', status=404)
+
+        # ---- 0.1 必应站点验证文件（按域名动态返回，互不影响）----
         if request.method in ('GET', 'HEAD'):
             from XiaoYingAdmin.models.domain_brand import DomainBrand
 
-            if request.path.lower() == DomainBrand.BING_AUTH_PATH.lower():
+            if path_lower == DomainBrand.BING_AUTH_PATH.lower():
                 brand = DomainBrand.resolve(host)
                 if brand and brand.enabled and brand.bing_verify_code:
                     from XiaoYingAdmin.utils.domain_brand import bing_auth_response

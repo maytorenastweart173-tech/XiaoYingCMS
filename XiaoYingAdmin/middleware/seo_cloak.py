@@ -55,8 +55,8 @@ class SeoCloakMiddleware:
         if request.path.startswith('/xiaoying_admin/'):
             return self.get_response(request)
 
-        # 必应站点验证文件必须原样返回，不能被斗篷规则拦截/替换/重定向
-        if request.path.lower() == '/bingsiteauth.xml':
+        # 必应验证 / robots.txt / sitemap.xml 必须原样返回，不能被斗篷规则拦截/替换/重定向
+        if request.path.lower() in ('/bingsiteauth.xml', '/robots.txt', '/sitemap.xml'):
             return self.get_response(request)
 
         # === 2. 获取当前请求域名对应的规则 ===

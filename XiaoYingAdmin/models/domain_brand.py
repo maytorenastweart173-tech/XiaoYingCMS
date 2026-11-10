@@ -97,6 +97,28 @@ class DomainBrand(BaseModel):
                   '配置后本域名及子域名会提供 /BingSiteAuth.xml 并输出 Meta 标签',
     )
 
+    # robots.txt / sitemap.xml
+    robots_txt = models.TextField(
+        '自定义 robots.txt', blank=True, default='',
+        help_text='留空自动生成：User-agent: * / Allow: / / Sitemap: 当前域名',
+    )
+    sitemap_scope = models.CharField(
+        'Sitemap 主机范围', max_length=16, default='inherit',
+        choices=[
+            ('inherit', '继承主域名范围'),
+            ('custom', '自定义主机列表'),
+        ],
+        help_text='inherit：自动收录主域名 + 已知子域名；custom：只收录 sitemap_hosts 中的主机',
+    )
+    sitemap_hosts = models.JSONField(
+        'Sitemap 主机列表', default=list, blank=True,
+        help_text='额外或自定义的主机名列表，如 ["aaa.example.com", "bbb.example.com"]',
+    )
+    sitemap_extra_urls = models.TextField(
+        'Sitemap 额外 URL', blank=True, default='',
+        help_text='每行一个，支持 /path 相对路径或完整 https:// 地址',
+    )
+
     class Meta:
         verbose_name = '域名品牌'
         verbose_name_plural = '域名品牌'
@@ -220,6 +242,10 @@ class DomainBrand(BaseModel):
             'logo_selector': self.logo_selector,
             'bing_verify_code': self.bing_verify_code or '',
             'bing_configured': bool(self.bing_verify_code),
+            'robots_txt': self.robots_txt or '',
+            'sitemap_scope': self.sitemap_scope or 'inherit',
+            'sitemap_hosts': self.sitemap_hosts or [],
+            'sitemap_extra_urls': self.sitemap_extra_urls or '',
             'manual_sizes': self.manual_sizes or [],
             'updated_at': self.updated_time.strftime('%Y-%m-%d %H:%M:%S') if self.updated_time else '',
             'assets': {
