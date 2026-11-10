@@ -222,7 +222,7 @@
             var icon = preview.icon_192 || preview.icon_32 || preview.favicon || '';
             return '<tr>' +
                 '<td><div class="db-domain">' + esc(b.domain) + '</div>' +
-                <div class="db-sub">' + (b.replace_page_logo ? '替换页面 Logo' : '不替换页面 Logo') +
+                '<div class="db-sub">' + (b.replace_page_logo ? '替换页面 Logo' : '不替换页面 Logo') +
                 (b.seo_enabled ? ' · SEO 标签开' : ' · SEO 标签关') +
                 (b.bing_configured ? ' · 必应验证已配' : '') + '</div></td>' +
                 '<td>' + (b.brand_name ? esc(b.brand_name) : '<span style="color:#b6bcc6;">—</span>') + '</td>' +
@@ -237,12 +237,20 @@
         }).join('');
     }
 
+    function showLoadError(msg) {
+        var body = $('dbTableBody');
+        if (body) {
+            body.innerHTML = '<tr><td colspan="7" class="db-empty" style="color:#e74c3c;">' + esc(msg) + '</td></tr>';
+        }
+        toast(msg, 2);
+    }
+
     function load() {
         request(API.list).then(function (res) {
-            if (res && res.error) { toast(res.error, 2); return; }
+            if (res && res.error) { showLoadError(res.error); return; }
             brands = (res && res.brands) || [];
             render();
-        }).catch(function () { toast('加载失败', 2); });
+        }).catch(function () { showLoadError('加载失败，请刷新页面重试'); });
     }
 
     function openModal(brand) {
