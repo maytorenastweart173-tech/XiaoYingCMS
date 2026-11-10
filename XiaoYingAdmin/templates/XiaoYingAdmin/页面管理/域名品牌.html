@@ -14,8 +14,9 @@
 .db-table td{padding:12px 14px;border-bottom:1px solid #f2f4f7;font-size:13px;color:#3d4450;vertical-align:middle}
 .db-domain{font-weight:600;color:#2f3542}
 .db-sub{font-size:11px;color:#9aa1ac;margin-top:3px}
-.db-thumb{width:36px;height:36px;object-fit:contain;border:1px solid #eef1f5;border-radius:5px;background:#fff}
-.db-thumb-empty{width:36px;height:36px;border:1px dashed #dfe4ea;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#c3c9d2;font-size:11px}
+.db-thumb{width:52px;height:52px;object-fit:contain;box-sizing:border-box;padding:4px;border:1px solid #eef1f5;border-radius:8px;background:#fff;display:block;transition:transform .18s ease,box-shadow .18s ease}
+.db-thumb:hover{transform:scale(1.06);box-shadow:0 4px 12px rgba(15,23,42,.12)}
+.db-thumb-empty{width:52px;height:52px;box-sizing:border-box;border:1px dashed #dfe4ea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#c3c9d2;font-size:11px}
 .db-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px}
 .db-badge.on{background:#e8f7ee;color:#2f9e44}
 .db-badge.off{background:#f2f3f5;color:#9099a5}
@@ -40,8 +41,8 @@
 .db-upload-item .name em{display:block;font-style:normal;font-size:11px;color:#a3a9b3;margin-top:2px}
 .db-upload-item .layui-btn{margin:0}
 .db-preview{display:flex;gap:14px;align-items:center;margin-top:8px;flex-wrap:wrap}
-.db-preview img{max-height:48px;border:1px solid #eef1f5;border-radius:4px;background:#fff}
-.db-preview .ico{width:32px;height:32px}
+.db-preview img{height:72px;max-width:200px;object-fit:contain;border:1px solid #eef1f5;border-radius:6px;background:#fff;padding:4px;box-sizing:border-box}
+.db-preview .ico{width:52px;height:52px;max-width:none;object-fit:contain}
 .db-hint{background:#fffbe6;border:1px solid #ffe58f;color:#8c6d1f;font-size:12px;line-height:1.7;padding:8px 10px;border-radius:4px;margin-bottom:14px}
 .db-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 .db-adv{margin-top:6px}
